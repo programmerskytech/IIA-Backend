@@ -1,0 +1,565 @@
+2025-10-22 08:20:44 DEBUG [http-nio-8081-exec-4] org.hibernate.SQL - 
+    select
+        usermaster0_.userid as userid1_86_,
+        usermaster0_.createdby as createdb2_86_,
+        usermaster0_.createddate as createdd3_86_,
+        usermaster0_.email as email4_86_,
+        usermaster0_.employee_id as employee5_86_,
+        usermaster0_.mobilenumber as mobilenu6_86_,
+        usermaster0_.password as password7_86_,
+        usermaster0_.role_name as role_nam8_86_,
+        usermaster0_.username as username9_86_ 
+    from
+        user_master usermaster0_ 
+    where
+        usermaster0_.userid=? 
+        and usermaster0_.password=?
+2025-10-22 08:21:08 DEBUG [http-nio-8081-exec-7] org.hibernate.SQL - 
+    select
+        usermaster0_.userid as userid1_86_,
+        usermaster0_.createdby as createdb2_86_,
+        usermaster0_.createddate as createdd3_86_,
+        usermaster0_.email as email4_86_,
+        usermaster0_.employee_id as employee5_86_,
+        usermaster0_.mobilenumber as mobilenu6_86_,
+        usermaster0_.password as password7_86_,
+        usermaster0_.role_name as role_nam8_86_,
+        usermaster0_.username as username9_86_ 
+    from
+        user_master usermaster0_ 
+    where
+        usermaster0_.userid=? 
+        and usermaster0_.password=?
+2025-10-22 08:21:51 DEBUG [http-nio-8081-exec-8] org.hibernate.SQL - 
+    select
+        usermaster0_.userid as userid1_86_,
+        usermaster0_.createdby as createdb2_86_,
+        usermaster0_.createddate as createdd3_86_,
+        usermaster0_.email as email4_86_,
+        usermaster0_.employee_id as employee5_86_,
+        usermaster0_.mobilenumber as mobilenu6_86_,
+        usermaster0_.password as password7_86_,
+        usermaster0_.role_name as role_nam8_86_,
+        usermaster0_.username as username9_86_ 
+    from
+        user_master usermaster0_ 
+    where
+        usermaster0_.userid=? 
+        and usermaster0_.password=?
+2025-10-22 08:25:48 DEBUG [http-nio-8081-exec-1] org.hibernate.SQL - 
+    select
+        usermaster0_.userid as userid1_86_,
+        usermaster0_.createdby as createdb2_86_,
+        usermaster0_.createddate as createdd3_86_,
+        usermaster0_.email as email4_86_,
+        usermaster0_.employee_id as employee5_86_,
+        usermaster0_.mobilenumber as mobilenu6_86_,
+        usermaster0_.password as password7_86_,
+        usermaster0_.role_name as role_nam8_86_,
+        usermaster0_.username as username9_86_ 
+    from
+        user_master usermaster0_ 
+    where
+        usermaster0_.userid=? 
+        and usermaster0_.password=?
+2025-10-22 08:25:48 TRACE [http-nio-8081-exec-1] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [INTEGER] - [18]
+2025-10-22 08:25:48 TRACE [http-nio-8081-exec-1] o.h.type.descriptor.sql.BasicBinder - binding parameter [2] as [VARCHAR] - [password]
+2025-10-22 08:25:48 DEBUG [http-nio-8081-exec-1] org.hibernate.SQL - 
+    select
+        userrolema0_.userroleid as userrole1_87_,
+        userrolema0_.createdby as createdb2_87_,
+        userrolema0_.createddate as createdd3_87_,
+        userrolema0_.readpermission as readperm4_87_,
+        userrolema0_.roleid as roleid5_87_,
+        userrolema0_.userid as userid6_87_,
+        userrolema0_.writepermission as writeper7_87_ 
+    from
+        user_role_master userrolema0_ 
+    where
+        userrolema0_.userid=?
+2025-10-22 08:25:48 TRACE [http-nio-8081-exec-1] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [INTEGER] - [18]
+2025-10-22 08:25:48 DEBUG [http-nio-8081-exec-1] org.hibernate.SQL - 
+    select
+        employeede0_.employee_id as employee1_11_,
+        employeede0_.contact_details as contact_2_11_,
+        employeede0_.created_by as created_3_11_,
+        employeede0_.created_date as created_4_11_,
+        employeede0_.department_name as departme5_11_,
+        employeede0_.designation as designat6_11_,
+        employeede0_.employee_name as employee7_11_,
+        employeede0_.location as location8_11_,
+        employeede0_.updated_by as updated_9_11_,
+        employeede0_.updated_date as updated10_11_ 
+    from
+        employee_department_master employeede0_ 
+    where
+        employeede0_.employee_id is null
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-1] org.hibernate.SQL - 
+    select
+        rolemaster0_.roleid as roleid1_76_0_,
+        rolemaster0_.createdby as createdb2_76_0_,
+        rolemaster0_.createddate as createdd3_76_0_,
+        rolemaster0_.rolename as rolename4_76_0_ 
+    from
+        role_master rolemaster0_ 
+    where
+        rolemaster0_.roleid=?
+2025-10-22 08:25:49 TRACE [http-nio-8081-exec-1] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [INTEGER] - [1]
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-2] org.hibernate.SQL - 
+    select
+        uommaster0_.uom_code as uom_code1_85_,
+        uommaster0_.created_by as created_2_85_,
+        uommaster0_.created_date as created_3_85_,
+        uommaster0_.uom_name as uom_name4_85_,
+        uommaster0_.updated_by as updated_5_85_,
+        uommaster0_.updated_date as updated_6_85_ 
+    from
+        uom_master uommaster0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-3] org.hibernate.SQL - 
+    select
+        materialma0_.material_code as material1_52_,
+        materialma0_.brief_description as brief_de2_52_,
+        materialma0_.category as category3_52_,
+        materialma0_.created_by as created_4_52_,
+        materialma0_.created_date as created_5_52_,
+        materialma0_.currency as currency6_52_,
+        materialma0_.description as descript7_52_,
+        materialma0_.estimated_price_with_ccy as estimate8_52_,
+        materialma0_.indigenous_or_imported as indigeno9_52_,
+        materialma0_.remarks as remarks10_52_,
+        materialma0_.status as status11_52_,
+        materialma0_.sub_category as sub_cat12_52_,
+        materialma0_.unit_price as unit_pr13_52_,
+        materialma0_.uom as uom14_52_,
+        materialma0_.updated_by as updated15_52_,
+        materialma0_.updated_date as updated16_52_,
+        materialma0_.upload_image as upload_17_52_,
+        materialma0_.upload_image_name as upload_18_52_ 
+    from
+        material_master materialma0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-4] org.hibernate.SQL - 
+    select
+        projectmas0_.project_code as project_1_73_,
+        projectmas0_.allocated_amount as allocate2_73_,
+        projectmas0_.budget_type as budget_t3_73_,
+        projectmas0_.created_by as created_4_73_,
+        projectmas0_.created_date as created_5_73_,
+        projectmas0_.department_division as departme6_73_,
+        projectmas0_.end_date as end_date7_73_,
+        projectmas0_.financial_year as financia8_73_,
+        projectmas0_.project_head as project_9_73_,
+        projectmas0_.project_name_description as project10_73_,
+        projectmas0_.remarks_notes as remarks11_73_,
+        projectmas0_.start_date as start_d12_73_,
+        projectmas0_.updated_by as updated13_73_,
+        projectmas0_.updated_date as updated14_73_ 
+    from
+        project_master projectmas0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-5] org.hibernate.SQL - 
+    select
+        locationma0_.location_code as location1_48_,
+        locationma0_.address as address2_48_,
+        locationma0_.created_by as created_3_48_,
+        locationma0_.created_date as created_4_48_,
+        locationma0_.location_name as location5_48_,
+        locationma0_.updated_by as updated_6_48_,
+        locationma0_.updated_date as updated_7_48_ 
+    from
+        location_master locationma0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-6] org.hibernate.SQL - 
+    select
+        usermaster0_.userid as userid1_86_,
+        usermaster0_.createdby as createdb2_86_,
+        usermaster0_.createddate as createdd3_86_,
+        usermaster0_.email as email4_86_,
+        usermaster0_.employee_id as employee5_86_,
+        usermaster0_.mobilenumber as mobilenu6_86_,
+        usermaster0_.password as password7_86_,
+        usermaster0_.role_name as role_nam8_86_,
+        usermaster0_.username as username9_86_ 
+    from
+        user_master usermaster0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-7] org.hibernate.SQL - 
+    select
+        locatormas0_.locator_id as locator_1_49_,
+        locatormas0_.create_date as create_d2_49_,
+        locatormas0_.created_by as created_3_49_,
+        locatormas0_.location_id as location4_49_,
+        locatormas0_.locator_desc as locator_5_49_,
+        locatormas0_.update_date as update_d6_49_,
+        locatormas0_.updated_by as updated_7_49_ 
+    from
+        locator_master locatormas0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-8] org.hibernate.SQL - 
+    select
+        vendormast0_.vendor_id as vendor_i1_90_,
+        vendormast0_.account_no as account_2_90_,
+        vendormast0_.address as address3_90_,
+        vendormast0_.alternate_email_or_phone_number as alternat4_90_,
+        vendormast0_.bank_address as bank_add5_90_,
+        vendormast0_.bank_name as bank_nam6_90_,
+        vendormast0_.bank_routing_number as bank_rou7_90_,
+        vendormast0_.bic_code as bic_code8_90_,
+        vendormast0_.contact_no as contact_9_90_,
+        vendormast0_.country as country10_90_,
+        vendormast0_.created_by as created11_90_,
+        vendormast0_.created_date as created12_90_,
+        vendormast0_.email_address as email_a13_90_,
+        vendormast0_.fax as fax14_90_,
+        vendormast0_.gst_no as gst_no15_90_,
+        vendormast0_.iban_aba_number as iban_ab16_90_,
+        vendormast0_.ifsc_code as ifsc_co17_90_,
+        vendormast0_.pan_no as pan_no18_90_,
+        vendormast0_.pfms_vendor_code as pfms_ve19_90_,
+        vendormast0_.place as place20_90_,
+        vendormast0_.primary_business as primary21_90_,
+        vendormast0_.purchase_history as purchas22_90_,
+        vendormast0_.registered_platform as registe23_90_,
+        vendormast0_.remarks as remarks24_90_,
+        vendormast0_.sort_code as sort_co25_90_,
+        vendormast0_.state as state26_90_,
+        vendormast0_.status as status27_90_,
+        vendormast0_.swift_code as swift_c28_90_,
+        vendormast0_.updated_by as updated29_90_,
+        vendormast0_.updated_date as updated30_90_,
+        vendormast0_.vendor_name as vendor_31_90_,
+        vendormast0_.vendor_type as vendor_32_90_ 
+    from
+        vendor_master vendormast0_
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-9] org.hibernate.SQL - 
+    select
+        workflowtr0_.status as col_0_0_,
+        workflowtr0_.requestid as col_1_0_,
+        workflowtr0_.workflowname as col_2_0_ 
+    from
+        workflow_transition workflowtr0_ 
+    where
+        workflowtr0_.nextrole=?
+2025-10-22 08:25:49 DEBUG [http-nio-8081-exec-10] org.hibernate.SQL - 
+    select
+        workflowtr0_.status as col_0_0_,
+        workflowtr0_.requestid as col_1_0_,
+        workflowtr0_.workflowname as col_2_0_ 
+    from
+        workflow_transition workflowtr0_ 
+    where
+        workflowtr0_.nextrole=?
+2025-10-22 08:25:49 TRACE [http-nio-8081-exec-9] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [Indent Creator]
+2025-10-22 08:25:49 TRACE [http-nio-8081-exec-10] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [Indent Creator]
+2025-10-22 08:32:24 DEBUG [http-nio-8081-exec-1] org.hibernate.SQL - 
+    SELECT
+        am.asset_id,
+        am.material_code,
+        am.material_desc,
+        am.asset_desc,
+        am.make_no,
+        am.serial_no,
+        am.model_no,
+        am.init_quantity,
+        am.unit_price,
+        am.uom_id,
+        am.depriciation_rate,
+        am.end_of_life,
+        am.stock_levels,
+        am.condition_of_goods,
+        am.shelf_life,
+        am.component_name,
+        am.component_id,
+        am.create_date,
+        am.created_by,
+        am.updated_date,
+        am.updated_by,
+        am.po_id,
+        po.total_value_of_po,
+        po.vendor_id 
+    FROM
+        asset_master am 
+    LEFT JOIN
+        purchase_order po 
+            ON am.po_id = po.po_id 
+2025-10-22 08:32:24 DEBUG [http-nio-8081-exec-2] org.hibernate.SQL - 
+    select
+        workflowtr0_.workflowtransitionid as workflow1_96_,
+        workflowtr0_.action as action2_96_,
+        workflowtr0_.createdby as createdb3_96_,
+        workflowtr0_.createddate as createdd4_96_,
+        workflowtr0_.currentrole as currentr5_96_,
+        workflowtr0_.modificationdate as modifica6_96_,
+        workflowtr0_.modifiedby as modified7_96_,
+        workflowtr0_.nextaction as nextacti8_96_,
+        workflowtr0_.nextrole as nextrole9_96_,
+        workflowtr0_.remarks as remarks10_96_,
+        workflowtr0_.requestid as request11_96_,
+        workflowtr0_.status as status12_96_,
+        workflowtr0_.transitionid as transit13_96_,
+        workflowtr0_.transitionorder as transit14_96_,
+        workflowtr0_.transitionsuborder as transit15_96_,
+        workflowtr0_.workflowid as workflo16_96_,
+        workflowtr0_.workflowname as workflo17_96_,
+        workflowtr0_.workflowsequence as workflo18_96_ 
+    from
+        workflow_transition workflowtr0_ 
+    where
+        workflowtr0_.nextaction=? 
+        and workflowtr0_.nextrole=?
+2025-10-22 08:32:24 TRACE [http-nio-8081-exec-2] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [Pending]
+2025-10-22 08:32:24 TRACE [http-nio-8081-exec-2] o.h.type.descriptor.sql.BasicBinder - binding parameter [2] as [VARCHAR] - [Indent Creator]
+2025-10-22 08:32:24 DEBUG [http-nio-8081-exec-2] org.hibernate.SQL - 
+    select
+        indentcrea0_.indent_id as indent_i1_42_,
+        indentcrea0_.brand_and_model as brand_an2_42_,
+        indentcrea0_.brand_pac as brand_pa3_42_,
+        indentcrea0_.buy_back as buy_back4_42_,
+        indentcrea0_.buy_back_amount as buy_back5_42_,
+        indentcrea0_.cancel_remarks as cancel_r6_42_,
+        indentcrea0_.cancel_status as cancel_s7_42_,
+        indentcrea0_.consignes_location as consigne8_42_,
+        indentcrea0_.created_by as created_9_42_,
+        indentcrea0_.created_date as created10_42_,
+        indentcrea0_.date_of_purchase as date_of11_42_,
+        indentcrea0_.draft_eoi_or_rfp_file_name as draft_e12_42_,
+        indentcrea0_.employee_department as employe13_42_,
+        indentcrea0_.employee_id as employe14_42_,
+        indentcrea0_.employee_name as employe15_42_,
+        indentcrea0_.estimated_rate as estimat16_42_,
+        indentcrea0_.file_type as file_ty17_42_,
+        indentcrea0_.indent_number as indent_18_42_,
+        indentcrea0_.indentor_email_address as indento19_42_,
+        indentcrea0_.indentor_mobile_no as indento20_42_,
+        indentcrea0_.indentor_name as indento21_42_,
+        indentcrea0_.is_it_a_rate_contract_indent as is_it_a22_42_,
+        indentcrea0_.is_pre_bit_meeting_required as is_pre_23_42_,
+        indentcrea0_.justification as justifi24_42_,
+        indentcrea0_.model_number as model_n25_42_,
+        indentcrea0_.period_of_contract as period_26_42_,
+        indentcrea0_.pre_bid_meeting_date as pre_bid27_42_,
+        indentcrea0_.pre_bid_meeting_venue as pre_bid28_42_,
+        indentcrea0_.project_name as project29_42_,
+        indentcrea0_.proprietary_and_limited_declaration as proprie30_42_,
+        indentcrea0_.proprietary_justification as proprie31_42_,
+        indentcrea0_.purpose as purpose32_42_,
+        indentcrea0_.quarter as quarter33_42_,
+        indentcrea0_.reason as reason34_42_,
+        indentcrea0_.serial_number as serial_35_42_,
+        indentcrea0_.single_and_multiple_job as single_36_42_,
+        indentcrea0_.technical_specifications_file_name as technic37_42_,
+        indentcrea0_.total_indent_value as total_i38_42_,
+        indentcrea0_.updated_by as updated39_42_,
+        indentcrea0_.updated_date as updated40_42_,
+        indentcrea0_.upload_buy_back_file_names as upload_41_42_,
+        indentcrea0_.upload_goi_or_rfp as upload_42_42_,
+        indentcrea0_.upload_pac_or_brand_pac as upload_43_42_,
+        indentcrea0_.upload_pac_or_brand_pac_file_name as upload_44_42_,
+        indentcrea0_.upload_tender_documents as upload_45_42_,
+        indentcrea0_.uploading_prior_approvals as uploadi46_42_,
+        indentcrea0_.uploading_prior_approvals_file_name as uploadi47_42_ 
+    from
+        indent_creation indentcrea0_ 
+    where
+        indentcrea0_.indent_id=?
+2025-10-22 08:32:24 TRACE [http-nio-8081-exec-2] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [IND1087]
+2025-10-22 08:32:28 DEBUG [http-nio-8081-exec-3] org.hibernate.SQL - 
+    select
+        workflowtr0_.requestid as col_0_0_ 
+    from
+        workflow_transition workflowtr0_ 
+    where
+        workflowtr0_.workflowname='Tender Approver Workflow' 
+        and workflowtr0_.status='Completed' 
+        and (
+            workflowtr0_.nextaction is null
+        ) 
+        and (
+            workflowtr0_.requestid not in  (
+                select
+                    subworkflo1_.requestid 
+                from
+                    sub_workflow_transition subworkflo1_
+            )
+        ) 
+        and (
+            workflowtr0_.requestid not in  (
+                select
+                    purchaseor2_.tender_id 
+                from
+                    purchase_order purchaseor2_
+            )
+        ) 
+        and (
+            workflowtr0_.requestid not in  (
+                select
+                    serviceord3_.tender_id 
+                from
+                    service_order serviceord3_
+            )
+        )
+2025-10-22 08:32:28 DEBUG [http-nio-8081-exec-3] org.hibernate.SQL - 
+    select
+        tenderrequ0_.tender_id as tender_i1_82_,
+        tenderrequ0_.applicable_taxes as applicab2_82_,
+        tenderrequ0_.bid_security_declaration as bid_secu3_82_,
+        tenderrequ0_.bid_security_declaration_file_name as bid_secu4_82_,
+        tenderrequ0_.bid_type as bid_type5_82_,
+        tenderrequ0_.billinng_address as billinng6_82_,
+        tenderrequ0_.buy_back as buy_back7_82_,
+        tenderrequ0_.buy_back_amount as buy_back8_82_,
+        tenderrequ0_.cancel_remarks as cancel_r9_82_,
+        tenderrequ0_.cancel_status as cancel_10_82_,
+        tenderrequ0_.closing_date as closing11_82_,
+        tenderrequ0_.consignes as consign12_82_,
+        tenderrequ0_.created_by as created13_82_,
+        tenderrequ0_.created_date as created14_82_,
+        tenderrequ0_.date_of_purchase as date_of15_82_,
+        tenderrequ0_.file_type as file_ty16_82_,
+        tenderrequ0_.inco_terms as inco_te17_82_,
+        tenderrequ0_.indent_materials as indent_18_82_,
+        tenderrequ0_.last_date_of_submission as last_da19_82_,
+        tenderrequ0_.ld_clause as ld_clau20_82_,
+        tenderrequ0_.mll_status_declaration as mll_sta21_82_,
+        tenderrequ0_.mll_status_declaration_file_name as mll_sta22_82_,
+        tenderrequ0_.mode_of_procurement as mode_of23_82_,
+        tenderrequ0_.model_number as model_n24_82_,
+        tenderrequ0_.opening_date as opening25_82_,
+        tenderrequ0_.payment_terms as payment26_82_,
+        tenderrequ0_.performance_and_warranty_security as perform27_82_,
+        tenderrequ0_.pre_bid_disscussions as pre_bid28_82_,
+        tenderrequ0_.project_name as project29_82_,
+        tenderrequ0_.quotation_file_name as quotati30_82_,
+        tenderrequ0_.serial_number as serial_31_82_,
+        tenderrequ0_.single_and_multiple_vendors as single_32_82_,
+        tenderrequ0_.tender_number as tender_33_82_,
+        tenderrequ0_.title_of_tender as title_o34_82_,
+        tenderrequ0_.total_tender_value as total_t35_82_,
+        tenderrequ0_.updated_by as updated36_82_,
+        tenderrequ0_.updated_date as updated37_82_,
+        tenderrequ0_.upload_buy_back_file_names as upload_38_82_,
+        tenderrequ0_.upload_general_terms_and_conditions as upload_39_82_,
+        tenderrequ0_.upload_general_terms_and_conditions_file_name as upload_40_82_,
+        tenderrequ0_.upload_specific_terms_and_conditions as upload_41_82_,
+        tenderrequ0_.upload_specific_terms_and_conditions_file_name as upload_42_82_,
+        tenderrequ0_.upload_tender_documents as upload_43_82_,
+        tenderrequ0_.upload_tender_documents_file_name as upload_44_82_,
+        tenderrequ0_.vendor_id as vendor_45_82_ 
+    from
+        tender_request tenderrequ0_ 
+    where
+        tenderrequ0_.tender_id=?
+2025-10-22 08:32:28 TRACE [http-nio-8081-exec-3] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [T1017]
+2025-10-22 08:32:29 DEBUG [http-nio-8081-exec-4] org.hibernate.SQL - 
+    SELECT
+        gm.process_id,
+        gm.sub_process_id,
+        gm.po_id,
+        gm.location_id,
+        gm.date,
+        gm.challan_no,
+        gm.delivery_date,
+        gm.vendor_id,
+        gm.field_station,
+        gm.indentor_name,
+        gm.supply_expected_date,
+        gm.consignee_detail,
+        gm.warranty_years,
+        gm.project,
+        gm.received_by,
+        JSON_ARRAYAGG(         JSON_OBJECT(             'detailId',
+        gmd.detail_id,
+        'materialCode',
+        gmd.material_code,
+        'materialDesc',
+        gmd.material_desc,
+        'uomId',
+        gmd.uom_id,
+        'receivedQuantity',
+        gmd.received_quantity,
+        'unitPrice',
+        gmd.unit_price,
+        'makeNo',
+        gmd.make_no,
+        'serialNo',
+        gmd.serial_no,
+        'modelNo',
+        gmd.model_no,
+        'warrantyTerms',
+        gmd.warranty_terms,
+        'note',
+        gmd.note,
+        'photoPath',
+        gmd.photo_path         )     ) as material_details,
+        gm.status 
+    FROM
+        gprn_master gm 
+    LEFT JOIN
+        goods_inspection_master gim 
+            ON gm.sub_process_id = gim.gprn_sub_process_id 
+    JOIN
+        gprn_material_detail gmd 
+            ON gm.sub_process_id = gmd.sub_process_id 
+    WHERE
+        gim.inspection_sub_process_id IS NULL 
+        AND     gm.status = ? 
+    GROUP BY
+        gm.sub_process_id 
+    ORDER BY
+        gm.date DESC 
+2025-10-22 08:32:29 DEBUG [http-nio-8081-exec-5] org.hibernate.SQL - 
+    SELECT
+        gm.process_id,
+        gm.sub_process_id,
+        gm.po_id,
+        gm.location_id,
+        gm.date,
+        gm.challan_no,
+        gm.delivery_date,
+        gm.vendor_id,
+        gm.field_station,
+        gm.indentor_name,
+        gm.supply_expected_date,
+        gm.consignee_detail,
+        gm.warranty_years,
+        gm.project,
+        gm.received_by,
+        JSON_ARRAYAGG(         JSON_OBJECT(             'detailId',
+        gmd.detail_id,
+        'materialCode',
+        gmd.material_code,
+        'materialDesc',
+        gmd.material_desc,
+        'uomId',
+        gmd.uom_id,
+        'receivedQuantity',
+        gmd.received_quantity,
+        'unitPrice',
+        gmd.unit_price,
+        'makeNo',
+        gmd.make_no,
+        'serialNo',
+        gmd.serial_no,
+        'modelNo',
+        gmd.model_no,
+        'warrantyTerms',
+        gmd.warranty_terms,
+        'note',
+        gmd.note,
+        'photoPath',
+        gmd.photo_path         )     ) as material_details,
+        gm.status 
+    FROM
+        gprn_master gm 
+    LEFT JOIN
+        goods_inspection_master gim 
+            ON gm.sub_process_id = gim.gprn_sub_process_id 
+    JOIN
+        gprn_material_detail gmd 
+            ON gm.sub_process_id = gmd.sub_process_id 
+    WHERE
+        gim.inspection_sub_process_id IS NULL 
+        AND     gm.status = ? 
+        AND     gm.created_by = ? 
+    GROUP BY
+        gm.sub_process_id 
+    ORDER BY
+        gm.date DESC 
+2025-10-22 08:32:29 TRACE [http-nio-8081-exec-4] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [AWAITING APPROVAL]
+2025-10-22 08:32:29 TRACE [http-nio-8081-exec-5] o.h.type.descriptor.sql.BasicBinder - binding parameter [1] as [VARCHAR] - [CHANGE REQUEST]
+2025-10-22 08:32:29 TRACE [http-nio-8081-exec-5] o.h.type.descriptor.sql.BasicBinder - binding parameter [2] as [VARCHAR] - [18]

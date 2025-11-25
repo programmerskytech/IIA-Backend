@@ -1,0 +1,291 @@
+[33mcommit 084d368f3647850427c5ab816903ce9fe7f46bc4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sun Apr 27 16:18:51 2025 +0530
+
+    vendor mail
+
+[33mcommit 143091556ae323690bef19d810555509384a7002[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sun Apr 27 16:06:59 2025 +0530
+
+    vendor mail
+
+[33mcommit 8e3e3add428af889c0b7feea3443fcdb3a151e28[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sun Apr 27 16:02:54 2025 +0530
+
+    vendor mail util
+
+[33mcommit 28b187a4ad9869234c9ba1697356abbc7c3d8296[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Apr 25 18:12:46 2025 +0530
+
+    vendorStatus api
+
+[33mcommit 4f36d623842c38c482d1dd212c4b6a155bcfeeed[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 25 14:47:05 2025 +0530
+
+    approval and poId
+
+[33mcommit 9b4f9db211dadf36c94de81c3a41201b338ec8c6[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 25 14:46:29 2025 +0530
+
+    approval and poId
+
+[33mcommit 246e2522a09e53d7d19aec949bd9d634bd62ee63[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 25 14:32:12 2025 +0530
+
+    approval and poId
+
+[33mcommit 0982069e36851cbd9f4a196cfc04338c16bc7660[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 25 14:22:44 2025 +0530
+
+    approval
+
+[33mcommit b1c01152d568684007da46c2f42c259026b81c15[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 25 11:23:06 2025 +0530
+
+    capital consumable
+
+[33mcommit 68a3acccdd64fc929778e6ce308addc6db666d4b[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Apr 25 07:25:43 2025 +0530
+
+    code changes related vendor
+
+[33mcommit 2dbc45ae6419335e3cd056c599fb50cd1a72373d[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Apr 24 15:13:30 2025 +0530
+
+    vendor related changes
+
+[33mcommit d97fd2b6188a4111dbbce9ef6f01195638602722[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Apr 24 12:59:28 2025 +0530
+
+    vendorId field added in so
+
+[33mcommit 3a787f79114c13018e12fde549c27bb6506cca2e[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Apr 24 11:41:03 2025 +0530
+
+    Add category field in PO dto
+
+[33mcommit 97f79f260318e48d0f2ad59ada5019dd81fc658f[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Tue Apr 22 16:48:41 2025 +0530
+
+    Approve All Api
+
+[33mcommit d7e4ddbd19cf2af7787203c2566aaa646b0ea831[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Apr 18 12:05:00 2025 +0530
+
+    changes in materail queue
+
+[33mcommit e4c34198c16222785fd42ac9aaf9c7f5eccae523[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Wed Apr 16 14:46:25 2025 +0530
+
+    rem issues
+
+[33mcommit 44dec106e66ca62c95f28d3bb9ebb230e19ada31[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Wed Apr 16 13:25:45 2025 +0530
+
+    updated code of procurement and inv
+
+[33mcommit 85650e2f9286268d56b00dce8cf53fbb6197e976[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Tue Apr 15 14:22:01 2025 +0530
+
+    staging
+
+[33mcommit 5970602db0ec8c833d31268c0bbe4a5c6dad6cb5[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Tue Apr 15 14:10:54 2025 +0530
+
+    ogp
+
+[33mcommit d13750301b97812561eaaf98dde7aa91d6be5179[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Fri Apr 11 13:17:35 2025 +0530
+
+    inventory
+
+[33mcommit 5e53355b441a4b88cc4edba4fb9a86fe22e0f352[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Apr 11 13:02:06 2025 +0530
+
+    fields are added in indent
+
+[33mcommit a98230ac98e38c21918c4568634772e00eeced8d[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Apr 11 08:04:03 2025 +0530
+
+    updated code
+
+[33mcommit 220a8adde7c04f9e3d01951fc4423a1ac1c37c1a[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Apr 10 09:40:45 2025 +0530
+
+    changes in procurement
+
+[33mcommit b8cfd1354c8cd232074bee8cf84b730774db29c2[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Wed Apr 9 14:29:33 2025 +0530
+
+    chnages
+
+[33mcommit 8ea5b08a13a59b32d3695fae668e7c5b21cefb24[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Wed Apr 9 08:51:06 2025 +0530
+
+    changes in procurement
+
+[33mcommit 75b84a71eed00757ef660f8efe6aeb4d8ea9cbb6[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sat Apr 5 15:44:56 2025 +0530
+
+    changes in procurement
+
+[33mcommit 2be97f17728731bb101e2bfa6aa2b471f732b763[m
+Merge: b2b9989 229c766
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Thu Apr 3 11:21:53 2025 +0530
+
+    gi queue
+
+[33mcommit b2b9989ebff09fb82d2ff8606d805df0446d7290[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Thu Apr 3 11:19:00 2025 +0530
+
+    inventory
+
+[33mcommit 814ff8cf8b995cb9721bda498bc2130a452ee383[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Thu Apr 3 11:18:26 2025 +0530
+
+    inventory
+
+[33mcommit 229c7668956d65a58aa551b88fd804d91883a162[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Apr 3 10:54:34 2025 +0530
+
+    changes on procurement
+
+[33mcommit 7d7243b4c6fcc9730631dab239bf1239c265c46a[m
+Merge: 58d1b23 4b8e99f
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Wed Apr 2 10:41:54 2025 +0530
+
+    inventory
+
+[33mcommit 58d1b23e14129d9d28896bc9c7b051afeabec94a[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Wed Apr 2 09:42:53 2025 +0530
+
+    report
+
+[33mcommit 4b8e99faac4eb0723d03c34f435f5f4111ff4cb1[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Wed Apr 2 09:10:00 2025 +0530
+
+    material related changes
+
+[33mcommit 018028bf29249f48853335d5ea0d2b350978dc8e[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Mon Mar 31 18:30:11 2025 +0530
+
+    vendor related changes
+
+[33mcommit ea681a3394a5ba2e1d52f8ff3fb5363e29023005[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Mon Mar 31 17:56:35 2025 +0530
+
+    vendor related code changes
+
+[33mcommit d97d0071e1f125b82a54bd76bf21d38f9e6271e0[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sat Mar 29 17:49:34 2025 +0530
+
+    material and vendor related code
+
+[33mcommit 933181ca9b36d9156ff24b299f7aa4ef1d333673[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Fri Mar 28 18:06:46 2025 +0530
+
+    Added vendorMasterUtil entity and vendor workflow
+
+[33mcommit a8ba2ba421650c6249ef5a84ac3a2fac4c7bbfc9[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Mar 27 12:23:17 2025 +0530
+
+    added indents in po response
+
+[33mcommit 72ba758ea1b85bdff0059e4f4161a0ae396fea13[m
+Author: abhinav-1312 <161845968+abhinav-1312@users.noreply.github.com>
+Date:   Thu Mar 27 11:48:32 2025 +0530
+
+    Delete C:/astro/document/INV directory
+
+[33mcommit b84cb8be2a5ce8e2a42ea45ad01786bc242b80b6[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Thu Mar 27 11:31:09 2025 +0530
+
+    inventory
+
+[33mcommit 1c6f6654642b09485a04d3ee6240e78809ed8361[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Thu Mar 27 09:32:31 2025 +0530
+
+    changes in procurement
+
+[33mcommit ae6169af0fbe0285829f96ab0715ad1283ecc40d[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Wed Mar 26 17:44:00 2025 +0530
+
+    Added issue register report api
+
+[33mcommit 3e0af85cfa732330d664788c9b26ead64975ca9b[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Tue Mar 25 12:54:43 2025 +0530
+
+    file path
+
+[33mcommit 43561435e5daef01ff3eff9c09520cdaa4df359b[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Tue Mar 25 12:12:41 2025 +0530
+
+    grn inventory
+
+[33mcommit 6256fa01cce4e65e069d57437e950702de72c85e[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Mon Mar 24 18:43:09 2025 +0530
+
+    Added new fields in indent
+
+[33mcommit ffa66c5fd09e917b07bab3127db0a7b8d5865145[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Mon Mar 24 12:02:46 2025 +0530
+
+    inventiry
+
+[33mcommit d2990be03c63be2e034eb360068f4220dcef2bf7[m
+Author: abhinav-1312 <abhinav@dkgrouplabs.com>
+Date:   Mon Mar 24 00:09:56 2025 +0530
+
+    inventory
+
+[33mcommit ab9c053726ad14ab38cad100462263981da9db3a[m
+Author: kudaykiran-99 <uday@dkgrouplabs.com>
+Date:   Sun Mar 23 12:21:28 2025 +0530
+
+    changes in procurement
+
+[33mcommit 48c27cb72dca4f552e22a7aab024c543bd3c8e9a[m

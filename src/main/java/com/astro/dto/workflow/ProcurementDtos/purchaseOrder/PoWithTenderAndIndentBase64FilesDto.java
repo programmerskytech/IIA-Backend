@@ -1,0 +1,61 @@
+package com.astro.dto.workflow.ProcurementDtos.purchaseOrder;
+
+import com.astro.dto.workflow.ProcurementDtos.PoFormateDto;
+import com.astro.dto.workflow.ProcurementDtos.TenderWithIndentResponseDTO;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+public class PoWithTenderAndIndentBase64FilesDto {
+
+        private String poId;
+        private String tenderId;
+        private String indentId;
+        private String warranty;
+        private String consignesAddress;
+        private String billingAddress;
+        private BigDecimal deliveryPeriod;
+        private Boolean ifLdClauseApplicable;
+        private String incoTerms;
+        private String paymentTerms;
+        private String vendorId;
+        private String vendorName;
+        private String vendorAddress;
+        private String applicablePbgToBeSubmitted;
+        private String transporterAndFreightForWarderDetails;
+        private String vendorAccountNumber;
+        private String vendorsIfscCode;
+        private String vendorAccountName;
+        private BigDecimal totalValueOfPo;
+        private String projectName;
+        private BigDecimal projectLimit;
+        private List<String> indentIds;
+        private String deliveryDate;
+        private List<PurchaseOrderAttributesResponseDTO> purchaseOrderAttributes;
+        private Integer createdBy;
+        private String updatedBy;
+        private String comparativeStatementFileName;
+        private List<String> comparativeStatementFileNameList;
+        private LocalDateTime createdDate;
+        private LocalDateTime updatedDate;
+        private String status;
+        private String processStage;
+
+        private TenderWithIndentResponseDTO tenderDetails;
+        private List<String> gemContractFileName;
+        private String typeOfSecurity;
+
+        private String securityNumber;
+
+        private String securityDate;
+
+        private String expiryDate;
+
+        private PoFormateDto poFormateData;
+
+        private List<PoFormateApprovalHistory> poHistory;
+
+}
