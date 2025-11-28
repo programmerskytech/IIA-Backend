@@ -33,4 +33,6 @@ List<EmployeeDepartmentMaster> findByIsDraftFalse();
 
 // Find all drafts
 List<EmployeeDepartmentMaster> findByIsDraftTrue();
+// Add this method
+List<EmployeeDepartmentMaster> findByDepartmentNameAndStatusAndIsDraftFalse(String departmentName, String status);
 }

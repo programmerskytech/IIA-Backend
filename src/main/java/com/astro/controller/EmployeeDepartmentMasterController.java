@@ -131,4 +131,9 @@ public ResponseEntity<Object> submitDraft(@PathVariable String employeeId,
     EmployeeDepartmentMasterResponseDto response = employeeService.submitDraft(employeeId, requestDTO);
     return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
 }
+@GetMapping("/employeeName/byDepartment")
+public ResponseEntity<Object> getEmployeesByDepartment(@RequestParam String department) {
+    List<employeedto> response = employeeService.getEmployeesByDepartment(department);
+    return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
+}
 }

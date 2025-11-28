@@ -40,5 +40,10 @@ List<EmployeeDepartmentMasterResponseDto> getDraftsByUser(String userId);
 List<EmployeeDepartmentMasterResponseDto> getAllDrafts();
 
 // Submit draft (convert draft to final)
+
 EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, EmployeeDepartmentMasterRequestDto requestDto);
+
+// Add this method
+List<employeedto> getEmployeesByDepartment(String departmentName);
+
 }

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @ControllerAdvice
 public class ExceptionHelper {
@@ -21,15 +22,11 @@ public class ExceptionHelper {
         return new ResponseEntity<Object>(ResponseBuilder.getErrorResponse(ex.getErrorDetails()), HttpStatus.BAD_REQUEST);
     }
 
-    
-
     @ExceptionHandler(value = { UnauthorizedException.class })
     public ResponseEntity<Object> handleUnauthorizedException(UnauthorizedException ex,  WebRequest request) {
         ex.printStackTrace();
         return new ResponseEntity<Object>(ResponseBuilder.getErrorResponse(ex.getErrorDetails()), HttpStatus.BAD_REQUEST);
     }
-
-    
 
     @ExceptionHandler(value = { BusinessException.class })
     public ResponseEntity<Object> handleBusinessException(BusinessException ex,  WebRequest request) {
@@ -41,6 +38,18 @@ public class ExceptionHelper {
     public ResponseEntity<Object> handleFilesNotFoundException(BusinessException ex,  WebRequest request) {
         ex.printStackTrace();
         return new ResponseEntity<Object>(ResponseBuilder.getErrorResponse(ex.getErrorDetails()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(value = { MaxUploadSizeExceededException.class })
+    public ResponseEntity<Object> handleMaxUploadSizeException(MaxUploadSizeExceededException ex, WebRequest request) {
+        ex.printStackTrace();
+        ErrorDetails errorDetails = new ErrorDetails(
+            413, 
+            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+            "FILE_TOO_LARGE", 
+            "Maximum upload size exceeded. Single file limit: 50MB, Total request limit: 200MB"
+        );
+        return new ResponseEntity<>(ResponseBuilder.getErrorResponse(errorDetails), HttpStatus.PAYLOAD_TOO_LARGE);
     }
 
     @ExceptionHandler(value = { Exception.class })
@@ -57,6 +66,4 @@ public class ExceptionHelper {
         ex.printStackTrace();
         return new ResponseEntity<Object>(ResponseBuilder.getErrorResponse(ex.getErrorDetails()), HttpStatus.BAD_REQUEST);
     }
-
-
 }

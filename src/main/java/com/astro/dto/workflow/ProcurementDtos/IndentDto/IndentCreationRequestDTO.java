@@ -64,4 +64,12 @@ public class IndentCreationRequestDTO {
     private String updatedBy;
     private Integer createdBy;
 
+    // NEW: Indent type - "material" or "job"
+    private String indentType;
+    
+    // NEW: Material category type - "all", "computer", or "non-computer"
+    private String materialCategoryType;
+    
+    // NEW: Job details list for job/service indents
+    private List<JobDetailsRequestDTO> jobDetails;
 }

@@ -367,6 +367,8 @@ public EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, Employ
 }
 
 private void validateRequiredFields(EmployeeDepartmentMasterRequestDto requestDto) {
+
+
     StringBuilder errors = new StringBuilder();
     
     if (requestDto.getEmployeeName() == null || requestDto.getEmployeeName().trim().isEmpty()) {
@@ -402,4 +404,18 @@ private void validateRequiredFields(EmployeeDepartmentMasterRequestDto requestDt
         );
     }
 }
+
+@Override
+public List<employeedto> getEmployeesByDepartment(String departmentName) {
+    List<EmployeeDepartmentMaster> employees = employeeRepository
+        .findByDepartmentNameAndStatusAndIsDraftFalse(departmentName, "Active");
+    return employees.stream()
+        .map(emp -> new employeedto(emp.getEmployeeId(), emp.getEmployeeName()))
+        .collect(Collectors.toList());
+}
+
+
+
+
+
 }

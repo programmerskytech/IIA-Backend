@@ -1,11 +1,8 @@
 package com.astro.dto.workflow.ProcurementDtos.IndentDto;
 
-
 import lombok.Data;
 
-import javax.persistence.Column;
 import java.math.BigDecimal;
-
 import java.util.List;
 
 @Data
@@ -21,10 +18,6 @@ public class IndentCreationResponseDTO {
     private String draftEOIOrRFPFileName;
     private String uploadPACOrBrandPACFileName;
     private String fileType;
-   // private String uploadingPriorApprovalsFile;
-   // private String uploadTenderDocumentsFile;
-   // private String uploadGOIOrRFPFile;
-   // private String uploadPACOrBrandPACFile;
 
     private String projectName;
     private Boolean isPreBidMeetingRequired;
@@ -37,7 +30,21 @@ public class IndentCreationResponseDTO {
     private String materialCategory;
     private BigDecimal totalPriceOfAllMaterials;
     private BigDecimal projectLimit;
+    
+    // Material Details (existing)
     private List<MaterialDetailsResponseDTO> materialDetails;
+    
+    // NEW: Job/Service Details
+    private List<JobDetailsResponseDTO> jobDetails;
+    
+    // NEW: Indent Type - "material" or "job"
+    private String indentType;
+    
+    // NEW: Material Category Type - "all", "computer", or "non-computer"
+    private String materialCategoryType;
+
+    
+    
     private String brandAndModel;
     private String justification;
     private Boolean brandPac;
