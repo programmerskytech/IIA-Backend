@@ -13,6 +13,8 @@ import com.astro.repository.DesignationMasterRepository;
 import com.astro.repository.EmployeeDepartmentMasterRepository;
 import com.astro.repository.EmployeeIdSequenceRepository;
 import com.astro.service.EmployeeDepartmentMasterService;
+import com.astro.service.UserService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,80 @@ public class EmployeeDepartmentMasterServiceImpl implements EmployeeDepartmentMa
     
     @Autowired
     private DepartmentMasterRepository departmentMasterRepository;
+
+    @Autowired
+private UserService userService;
+
+@Override
+@Transactional
+public EmployeeDepartmentMasterResponseDto createEmployeeDepartmentWithUser(EmployeeDepartmentMasterRequestDto employeeRequestDto) {
+    // Validate phone number
+    if (!employeeRequestDto.getPhoneNumber().matches("^[0-9]{10}$")) {
+        throw new BusinessException(
+            new ErrorDetails(
+                AppConstant.ERROR_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_VALIDATION,
+                "Phone number must be exactly 10 digits"
+            )
+        );
+    }
+
+    // Create employee first
+    Integer maxNumber = employeeIdSequenceRepository.findMaxEmployeeId();
+    int nextNumber = (maxNumber == null) ? 1100 : maxNumber + 1;
+    String employeeId = "E" + nextNumber;
+
+    EmployeeIdSequence em = new EmployeeIdSequence();
+    em.setEmployeeId(nextNumber);
+    employeeIdSequenceRepository.save(em);
+    
+    EmployeeDepartmentMaster employee = new EmployeeDepartmentMaster();
+    employee.setEmployeeId(employeeId);
+    employee.setEmployeeName(employeeRequestDto.getEmployeeName());
+    employee.setLocation(employeeRequestDto.getLocation());
+    employee.setDepartmentName(employeeRequestDto.getDepartmentName());
+    employee.setDesignation(employeeRequestDto.getDesignation());
+    employee.setPhoneNumber(employeeRequestDto.getPhoneNumber());
+    employee.setEmailAddress(employeeRequestDto.getEmailAddress());
+    employee.setAddress(employeeRequestDto.getAddress());
+    employee.setStatus(employeeRequestDto.getStatus() != null ? employeeRequestDto.getStatus() : "Active");
+    employee.setCreatedBy(employeeRequestDto.getCreatedBy());
+    employee.setUpdatedBy(employeeRequestDto.getUpdatedBy());
+    employee.setCreatedDate(LocalDateTime.now());
+    employee.setUpdatedDate(LocalDateTime.now());
+    employee.setIsDraft(false);
+
+    employeeRepository.save(employee);
+    
+    Integer createdUserId = null;  // ✅ ADD THIS: Track created userId
+    
+    // Create user account if requested
+    if(employeeRequestDto.getCreateUserAccount() != null && 
+       employeeRequestDto.getCreateUserAccount() && 
+       employeeRequestDto.getUserPassword() != null &&
+       !employeeRequestDto.getUserPassword().isEmpty()) {
+        
+        userRequestDto userRequest = new userRequestDto();
+        userRequest.setUserName(employeeRequestDto.getUserName() != null ? 
+                                 employeeRequestDto.getUserName() : 
+                                 employeeRequestDto.getEmployeeName());
+        userRequest.setPassword(employeeRequestDto.getUserPassword());
+        userRequest.setEmail(employeeRequestDto.getEmailAddress());
+        userRequest.setMobileNumber(employeeRequestDto.getPhoneNumber());
+        userRequest.setEmployeeId(employeeId);
+        userRequest.setRoleNames(employeeRequestDto.getUserRoles());
+        userRequest.setCreatedBy(employeeRequestDto.getCreatedBy());
+        
+        UserDto createdUser = userService.createUserWithEncryption(userRequest);  // ✅ CHANGED: Capture response
+        createdUserId = createdUser.getUserId();  // ✅ ADD THIS: Store userId
+    }
+    
+    EmployeeDepartmentMasterResponseDto response = mapToResponseDTO(employee);
+    response.setUserId(createdUserId);  // ✅ ADD THIS: Include userId in response
+    return response;
+}
+
 
     @Override
     @Transactional

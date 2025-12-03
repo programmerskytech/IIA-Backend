@@ -1,15 +1,10 @@
 package com.astro.dto.workflow.ProcurementDtos.IndentDto;
 
-import com.astro.util.Base64ToByteArrayConverter;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.web.multipart.MultipartFile;
 
-import javax.persistence.Column;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -18,11 +13,7 @@ import java.util.List;
 public class IndentCreationRequestDTO {
 
     private String indentorName;
-
-  //  private String indentId;
-
     private String indentorMobileNo;
-
     private String indentorEmailAddress;
     private String consignesLocation;
     private String fileType;
@@ -30,11 +21,6 @@ public class IndentCreationRequestDTO {
     private List<String> technicalSpecificationsFileName;
     private List<String> draftEOIOrRFPFileName;
     private List<String> uploadPACOrBrandPACFileName;
-    //private MultipartFile uploadingPriorApprovals;
-  //  private MultipartFile uploadTenderDocuments;
-  //  private MultipartFile uploadGOIOrRFP;
-   // private MultipartFile uploadPACOrBrandPAC;
-
 
     private String projectName;
     private Boolean isPreBidMeetingRequired;
@@ -43,7 +29,11 @@ public class IndentCreationRequestDTO {
     private Boolean isItARateContractIndent;
     private BigDecimal estimatedRate;
     private BigDecimal periodOfContract;
-    private String singleAndMultipleJob;
+    
+    // REMOVED: private String singleAndMultipleJob;
+    // NEW: Multiple job codes for rate contract
+    private List<String> rateContractJobCodes;
+    
     private String brandAndModel;
     private String justification;
     private Boolean brandPac;
@@ -64,12 +54,12 @@ public class IndentCreationRequestDTO {
     private String updatedBy;
     private Integer createdBy;
 
-    // NEW: Indent type - "material" or "job"
+    // Indent type - "material" or "job"
     private String indentType;
     
-    // NEW: Material category type - "all", "computer", or "non-computer"
+    // Material category type - "all", "computer", or "non-computer"
     private String materialCategoryType;
     
-    // NEW: Job details list for job/service indents
+    // Job details list for job/service indents
     private List<JobDetailsRequestDTO> jobDetails;
 }

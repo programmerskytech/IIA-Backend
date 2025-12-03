@@ -26,7 +26,11 @@ public class IndentCreationResponseDTO {
     private Boolean isItARateContractIndent;
     private BigDecimal estimatedRate;
     private BigDecimal periodOfContract;
-    private String singleAndMultipleJob;
+    
+    // REMOVED: private String singleAndMultipleJob;
+    // NEW: Multiple job codes for rate contract - returns as List
+    private List<String> rateContractJobCodes;
+    
     private String materialCategory;
     private BigDecimal totalPriceOfAllMaterials;
     private BigDecimal projectLimit;
@@ -34,17 +38,15 @@ public class IndentCreationResponseDTO {
     // Material Details (existing)
     private List<MaterialDetailsResponseDTO> materialDetails;
     
-    // NEW: Job/Service Details
+    // Job/Service Details
     private List<JobDetailsResponseDTO> jobDetails;
     
-    // NEW: Indent Type - "material" or "job"
+    // Indent Type - "material" or "job"
     private String indentType;
     
-    // NEW: Material Category Type - "all", "computer", or "non-computer"
+    // Material Category Type - "all", "computer", or "non-computer"
     private String materialCategoryType;
 
-    
-    
     private String brandAndModel;
     private String justification;
     private Boolean brandPac;

@@ -7,7 +7,9 @@ import java.util.List;
 public interface EmployeeDepartmentMasterService {
 
     EmployeeDepartmentMasterResponseDto createEmployeeDepartment(EmployeeDepartmentMasterRequestDto employeeRequestDto);
-    
+
+    EmployeeDepartmentMasterResponseDto createEmployeeDepartmentWithUser(EmployeeDepartmentMasterRequestDto employeeRequestDto);
+
     EmployeeDepartmentMasterResponseDto updateEmployeeDepartmentMaster(String employeeId, EmployeeDepartmentMasterRequestDto employeeRequestDto);
     
     List<EmployeeDepartmentMasterResponseDto> getAllEmployeeDepartmentMasters();

@@ -3,6 +3,7 @@ package com.astro.dto.workflow;
 import lombok.Data;
 
 import javax.validation.constraints.*;
+import java.util.List;
 
 @Data
 public class EmployeeDepartmentMasterRequestDto {
@@ -21,7 +22,6 @@ public class EmployeeDepartmentMasterRequestDto {
     @NotBlank(message = "Designation is required")
     private String designation;
     
-    // Separate contact detail fields
     @NotBlank(message = "Phone number is required")
     @Pattern(regexp = "^[0-9]{10}$", message = "Phone number must be exactly 10 digits")
     private String phoneNumber;
@@ -33,7 +33,6 @@ public class EmployeeDepartmentMasterRequestDto {
     @NotBlank(message = "Address is required")
     private String address;
     
-    // Status field
     private String status = "Active";
     
     @NotBlank(message = "Created by is required")
@@ -42,4 +41,14 @@ public class EmployeeDepartmentMasterRequestDto {
     private String updatedBy;
 
     private Boolean isDraft = false;
+    
+    // NEW FIELDS for user creation
+    private Boolean createUserAccount = false;
+    
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    private String userPassword;
+    
+    private String userName;
+    
+    private List<String> userRoles;
 }

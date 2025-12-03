@@ -12,16 +12,18 @@ import java.util.Set;
 
 @Repository
 public interface UserMasterRepository extends JpaRepository<UserMaster, Integer> {
-  UserMaster findByUserIdAndPassword(Integer userId, String password);
+    UserMaster findByUserIdAndPassword(Integer userId, String password);
 
-   // Optional<UserMaster> findByCreatedBy(String createdBy);
-   Optional<UserMaster> findByCreatedBy(String createdBy);
+    Optional<UserMaster> findByCreatedBy(String createdBy);
 
     UserMaster findByUserId(Integer createdBy);
 
     @Query("SELECT u FROM UserMaster u WHERE u.userId IN :ids")
     List<UserMaster> findByUserIdIn(@Param("ids") Set<Integer> ids);
- @Query("SELECT u.userName FROM UserMaster u WHERE u.userId = :userId")
- String findUserNameByUserId(@Param("userId") Integer userId);
-
+    
+    @Query("SELECT u.userName FROM UserMaster u WHERE u.userId = :userId")
+    String findUserNameByUserId(@Param("userId") Integer userId);
+    
+    // NEW METHOD
+    Optional<UserMaster> findByEmployeeId(String employeeId);
 }

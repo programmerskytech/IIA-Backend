@@ -2,6 +2,8 @@ package com.astro.controller;
 
 import com.astro.dto.workflow.*;
 import com.astro.service.EmployeeDepartmentMasterService;
+import com.astro.service.RoleMasterService;
+import com.astro.service.UserService;
 import com.astro.util.ResponseBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -9,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +22,33 @@ public class EmployeeDepartmentMasterController {
 
     @Autowired
     private EmployeeDepartmentMasterService employeeService;
+
+    @Autowired
+    private RoleMasterService roleMasterService;
+
+    @Autowired
+    private UserService userService;
+
+
+    @PostMapping("/with-user")
+public ResponseEntity<Object> createEmployeeWithUser(@Valid @RequestBody EmployeeDepartmentMasterRequestDto requestDTO) {
+    EmployeeDepartmentMasterResponseDto employee = employeeService.createEmployeeDepartmentWithUser(requestDTO);
+    return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(employee), HttpStatus.OK);
+}
+
+@GetMapping("/roles")
+public ResponseEntity<Object> getAllRoles() {
+    List<RoleDto> roles = roleMasterService.getAllRoles();
+    return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(roles), HttpStatus.OK);
+}
+
+@GetMapping("/user-exists/{employeeId}")
+public ResponseEntity<Object> checkUserExists(@PathVariable String employeeId) {
+    boolean exists = userService.userExistsByEmployeeId(employeeId);
+    Map<String, Boolean> response = new HashMap<>();
+    response.put("exists", exists);
+    return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
+}
 
     @PostMapping
     public ResponseEntity<Object> createEmployeeMaster(@Valid @RequestBody EmployeeDepartmentMasterRequestDto requestDTO) {

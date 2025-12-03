@@ -97,15 +97,6 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         String materialCategory = null;
         if ("material".equalsIgnoreCase(indentType) && indentRequestDTO.getMaterialDetails() != null) {
             for (MaterialDetailsRequestDTO materialRequest : indentRequestDTO.getMaterialDetails()) {
-                /*
-                // Example duplicate check if needed later
-                if (materialDetailsRepository.existsById(materialRequest.getMaterialCode())) {
-                    ErrorDetails errorDetails = new ErrorDetails(400, 1, "Duplicate Material Code",
-                            "Material Code " + materialRequest.getMaterialCode() + " already exists.");
-                    throw new InvalidInputException(errorDetails);
-                }
-                */
-
                 if (materialCategory == null) {
                     materialCategory = materialRequest.getMaterialCategory();
                 } else if (!materialCategory.equals(materialRequest.getMaterialCategory())) {
@@ -142,7 +133,16 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setIsItARateContractIndent(indentRequestDTO.getIsItARateContractIndent());
         indentCreation.setEstimatedRate(indentRequestDTO.getEstimatedRate());
         indentCreation.setPeriodOfContract(indentRequestDTO.getPeriodOfContract());
-        indentCreation.setSingleAndMultipleJob(indentRequestDTO.getSingleAndMultipleJob());
+        
+        // NEW: Handle multiple job codes for rate contract
+        // Convert List<String> to comma-separated string for storage
+        if (indentRequestDTO.getRateContractJobCodes() != null && !indentRequestDTO.getRateContractJobCodes().isEmpty()) {
+            String jobCodesStr = String.join(",", indentRequestDTO.getRateContractJobCodes());
+            indentCreation.setRateContractJobCodes(jobCodesStr);
+        } else {
+            indentCreation.setRateContractJobCodes(null);
+        }
+        
         indentCreation.setFileType(indentRequestDTO.getFileType());
         indentCreation.setEmployeeDepartment(indentRequestDTO.getEmployeeDepartment());
         indentCreation.setBuyBackAmount(indentRequestDTO.getBuyBackAmount());
@@ -206,7 +206,7 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setCreatedBy(indentRequestDTO.getCreatedBy());
         indentCreation.setUpdatedBy(indentRequestDTO.getUpdatedBy());
 
-        // NEW: Set indent type and material category type on entity
+        // Set indent type and material category type on entity
         indentCreation.setIndentType(indentType);
         indentCreation.setMaterialCategoryType(indentRequestDTO.getMaterialCategoryType());
 
@@ -361,7 +361,14 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setIsItARateContractIndent(indentRequestDTO.getIsItARateContractIndent());
         indentCreation.setEstimatedRate(indentRequestDTO.getEstimatedRate());
         indentCreation.setPeriodOfContract(indentRequestDTO.getPeriodOfContract());
-        indentCreation.setSingleAndMultipleJob(indentRequestDTO.getSingleAndMultipleJob());
+        
+        // NEW: Handle multiple job codes for rate contract on update
+        if (indentRequestDTO.getRateContractJobCodes() != null && !indentRequestDTO.getRateContractJobCodes().isEmpty()) {
+            String jobCodesStr = String.join(",", indentRequestDTO.getRateContractJobCodes());
+            indentCreation.setRateContractJobCodes(jobCodesStr);
+        } else {
+            indentCreation.setRateContractJobCodes(null);
+        }
 
         if (indentRequestDTO.getUploadBuyBackFileNames() == null || indentRequestDTO.getUploadBuyBackFileNames().isEmpty()) {
             indentCreation.setUploadBuyBackFileNames(null);
@@ -565,7 +572,7 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setIsItARateContractIndent(indentCreation.getIsItARateContractIndent());
         response.setEstimatedRate(indentCreation.getEstimatedRate());
         response.setPeriodOfContract(indentCreation.getPeriodOfContract());
-        response.setSingleAndMultipleJob(indentCreation.getSingleAndMultipleJob());
+        response.setSingleAndMultipleJob(indentCreation.getRateContractJobCodes());
         response.setTechnicalSpecificationsFile(indentCreation.getTechnicalSpecificationsFileName());
         response.setDraftFileName(indentCreation.getDraftEOIOrRFPFileName());
         response.setPacAndBrandFileName(indentCreation.getUploadPACOrBrandPACFileName());
@@ -620,7 +627,6 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setCreatedBy(indentCreation.getCreatedBy());
         response.setUpdatedBy(indentCreation.getUpdatedBy());
 
-        // Optional<WorkflowTransition> lastRecord = workflowTransitionRepository.findTopByRequestIdOrderByCreatedDateDesc(indentId);
         Optional<WorkflowTransition> lastRecord = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowTransitionIdDesc(indentId);
 
         if (lastRecord.isPresent()) {
@@ -753,7 +759,10 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setIsItARateContractIndent(indentCreation.getIsItARateContractIndent());
         response.setEstimatedRate(indentCreation.getEstimatedRate());
         response.setPeriodOfContract(indentCreation.getPeriodOfContract());
-        response.setSingleAndMultipleJob(indentCreation.getSingleAndMultipleJob());
+        
+        // NEW: Return job codes as List
+        response.setRateContractJobCodes(convertCommaSeparatedToList(indentCreation.getRateContractJobCodes()));
+        
         response.setTechnicalSpecificationsFileName(indentCreation.getTechnicalSpecificationsFileName());
         response.setDraftEOIOrRFPFileName(indentCreation.getDraftEOIOrRFPFileName());
         response.setUploadPACOrBrandPACFileName(indentCreation.getUploadPACOrBrandPACFileName());
@@ -788,7 +797,7 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setCreatedBy(indentCreation.getCreatedBy());
         response.setUpdatedBy(indentCreation.getUpdatedBy());
 
-        // NEW: indent type and materialCategoryType in tender response
+        // indent type and materialCategoryType in tender response
         String indentType = indentCreation.getIndentType();
         if (indentType == null || indentType.isEmpty()) {
             indentType = "material";
@@ -907,6 +916,14 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         return response;
     }
 
+    // NEW: Helper method to convert comma-separated string to List
+    private List<String> convertCommaSeparatedToList(String commaSeparated) {
+        if (commaSeparated == null || commaSeparated.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(Arrays.asList(commaSeparated.split(",")));
+    }
+
     @Transactional
     private IndentCreationResponseDTO mapToResponseDTO(IndentCreation indentCreation) {
         IndentCreationResponseDTO response = new IndentCreationResponseDTO();
@@ -932,7 +949,10 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setIsItARateContractIndent(indentCreation.getIsItARateContractIndent());
         response.setEstimatedRate(indentCreation.getEstimatedRate());
         response.setPeriodOfContract(indentCreation.getPeriodOfContract());
-        response.setSingleAndMultipleJob(indentCreation.getSingleAndMultipleJob());
+        
+        // NEW: Return job codes as List instead of singleAndMultipleJob
+        response.setRateContractJobCodes(convertCommaSeparatedToList(indentCreation.getRateContractJobCodes()));
+        
         response.setTechnicalSpecificationsFileName(indentCreation.getTechnicalSpecificationsFileName());
         response.setDraftEOIOrRFPFileName(indentCreation.getDraftEOIOrRFPFileName());
         response.setUploadPACOrBrandPACFileName(indentCreation.getUploadPACOrBrandPACFileName());
@@ -963,7 +983,7 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         response.setCreatedBy(indentCreation.getCreatedBy());
         response.setUpdatedBy(indentCreation.getUpdatedBy());
 
-        // NEW: indent type + materialCategoryType in normal response
+        // indent type + materialCategoryType in normal response
         String indentType = indentCreation.getIndentType();
         if (indentType == null || indentType.isEmpty()) {
             indentType = "material";

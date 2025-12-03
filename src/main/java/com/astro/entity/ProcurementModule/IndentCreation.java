@@ -65,8 +65,10 @@ public class IndentCreation {
     @Column(name = "period_of_contract")
     private BigDecimal periodOfContract;
 
-    @Column(name = "single_and_multiple_job")
-    private String singleAndMultipleJob;
+    // REMOVED: private String singleAndMultipleJob;
+    // NEW: Store multiple job codes as comma-separated string
+    @Column(name = "rate_contract_job_codes", length = 2000)
+    private String rateContractJobCodes;
 
     @Lob
     @Column(name = "upload_goi_or_rfp")
@@ -117,15 +119,15 @@ public class IndentCreation {
     @OneToMany(mappedBy = "indentCreation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MaterialDetails> materialDetails = new ArrayList<>();
 
-    // NEW: Job/Service Details
+    // Job/Service Details
     @OneToMany(mappedBy = "indentCreation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<JobDetails> jobDetails = new ArrayList<>();
 
-    // NEW: Indent Type - "material" or "job"
+    // Indent Type - "material" or "job"
     @Column(name = "indent_type")
     private String indentType;
 
-    // NEW: Material Category Type - "all", "computer", or "non-computer"
+    // Material Category Type - "all", "computer", or "non-computer"
     @Column(name = "material_category_type")
     private String materialCategoryType;
 
@@ -152,4 +154,20 @@ public class IndentCreation {
 
     @Column(name = "updated_date")
     private LocalDateTime updatedDate = LocalDateTime.now();
+    
+    // Helper methods to convert between List and comma-separated String
+    public List<String> getRateContractJobCodesAsList() {
+        if (rateContractJobCodes == null || rateContractJobCodes.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(java.util.Arrays.asList(rateContractJobCodes.split(",")));
+    }
+    
+    public void setRateContractJobCodesFromList(List<String> jobCodes) {
+        if (jobCodes == null || jobCodes.isEmpty()) {
+            this.rateContractJobCodes = null;
+        } else {
+            this.rateContractJobCodes = String.join(",", jobCodes);
+        }
+    }
 }

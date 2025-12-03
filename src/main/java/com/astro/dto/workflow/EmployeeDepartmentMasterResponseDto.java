@@ -26,4 +26,7 @@ public class EmployeeDepartmentMasterResponseDto {
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
     private Boolean isDraft;
+    
+    // ✅ ADD THIS: For displaying userId in frontend
+    private Integer userId;
 }
