@@ -44,6 +44,15 @@ public interface IndentCreationService {
     public String assignEmployeeToIndent(AssignEmployeeToIndentDto dto);
 
     public String cancelIndent(CancelIndentRequestDto request);
+
+    public String requestIndentCancellation(com.astro.dto.workflow.ProcurementDtos.IndentDto.IndentCancellationRequestDto request);
+
+    public List<com.astro.dto.workflow.ProcurementDtos.IndentDto.IndentCancellationResponseDto> getPendingCancellationRequests();
+
+    public String approveCancellationRequest(com.astro.dto.workflow.ProcurementDtos.IndentDto.IndentCancellationApprovalDto approval);
+
     public IndentCreationResponseDTO getIndentDataForTenderById(String indentId) throws IOException;
+
+    public List<com.astro.dto.workflow.MaterialPurchaseHistoryDTO> getMaterialPurchaseHistory(String materialCode);
 
     }

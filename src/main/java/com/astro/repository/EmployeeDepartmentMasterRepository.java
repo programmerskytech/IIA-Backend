@@ -25,14 +25,23 @@ public interface EmployeeDepartmentMasterRepository extends JpaRepository<Employ
             "LIMIT 10",
             nativeQuery = true)
     List<Object[]> searchEmployeesForDropdown(@Param("keyword") String keyword);
+    
     // Find all drafts by created user
-List<EmployeeDepartmentMaster> findByCreatedByAndIsDraftTrue(String createdBy);
+    List<EmployeeDepartmentMaster> findByCreatedByAndIsDraftTrue(String createdBy);
 
-// Find all non-draft employees
-List<EmployeeDepartmentMaster> findByIsDraftFalse();
+    // Find all non-draft employees
+    List<EmployeeDepartmentMaster> findByIsDraftFalse();
 
-// Find all drafts
-List<EmployeeDepartmentMaster> findByIsDraftTrue();
-// Add this method
-List<EmployeeDepartmentMaster> findByDepartmentNameAndStatusAndIsDraftFalse(String departmentName, String status);
+    // Find all drafts
+    List<EmployeeDepartmentMaster> findByIsDraftTrue();
+    
+    // Add this method
+    List<EmployeeDepartmentMaster> findByDepartmentNameAndStatusAndIsDraftFalse(String departmentName, String status);
+    
+    // ✅ ADD THIS: Case-insensitive search for employee name
+    @Query("SELECT e FROM EmployeeDepartmentMaster e WHERE LOWER(TRIM(e.employeeName)) = LOWER(TRIM(:employeeName)) AND e.status = :status AND e.isDraft = false")
+    Optional<EmployeeDepartmentMaster> findByEmployeeNameIgnoreCaseAndStatusAndIsDraftFalse(
+        @Param("employeeName") String employeeName, 
+        @Param("status") String status
+    );
 }

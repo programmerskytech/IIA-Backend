@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -111,6 +112,22 @@ public EmployeeDepartmentMasterResponseDto createEmployeeDepartmentWithUser(Empl
     return response;
 }
 
+
+@Override
+public String getDepartmentByEmployeeName(String employeeName) {
+    if (employeeName == null || employeeName.trim().isEmpty()) {
+        return null;
+    }
+    
+    Optional<EmployeeDepartmentMaster> employee = employeeRepository
+        .findByEmployeeNameIgnoreCaseAndStatusAndIsDraftFalse(employeeName.trim(), "Active");
+    
+    if (employee.isPresent()) {
+        return employee.get().getDepartmentName();
+    }
+    
+    return null;
+}
 
     @Override
     @Transactional

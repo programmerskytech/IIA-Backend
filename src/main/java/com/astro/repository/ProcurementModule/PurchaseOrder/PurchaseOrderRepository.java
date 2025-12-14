@@ -20,6 +20,9 @@ import java.util.List;
 @Repository
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, String> {
 
+    @Query("SELECT COALESCE(SUM(po.totalValueOfPo), 0) FROM PurchaseOrder po WHERE po.projectName = :projectName")
+    java.math.BigDecimal getTotalPoValueByProjectName(@Param("projectName") String projectName);
+
     @Query(value = """
                   select
                   po.po_id AS orderId,

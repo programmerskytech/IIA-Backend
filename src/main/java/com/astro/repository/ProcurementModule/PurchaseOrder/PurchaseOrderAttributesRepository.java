@@ -56,6 +56,28 @@ public interface PurchaseOrderAttributesRepository extends JpaRepository<Purchas
    BigDecimal findExchangeRateByMaterialCodeAndPoId(@Param("materialCode") String materialCode,
                                                     @Param("poId") String poId);
 
+   @Query("""
+        SELECT new com.astro.dto.workflow.MaterialPurchaseHistoryDTO(
+            po.poId,
+            po.indentId,
+            po.vendorName,
+            po.vendorId,
+            attr.quantity,
+            attr.rate,
+            attr.currency,
+            attr.exchangeRate,
+            po.createdDate,
+            attr.materialCode,
+            attr.materialDescription,
+            attr.gst,
+            attr.totalPoMaterialPriceInInr
+        )
+        FROM PurchaseOrderAttributes attr
+        JOIN attr.purchaseOrder po
+        WHERE attr.materialCode = :materialCode
+        ORDER BY po.createdDate DESC
+        """)
+   List<com.astro.dto.workflow.MaterialPurchaseHistoryDTO> findPurchaseHistoryByMaterialCode(@Param("materialCode") String materialCode);
 
  /*  @Query("""
 SELECT new com.astro.dto.workflow.ProcurementDtos.IndentDto.materialHistoryDto(

@@ -62,4 +62,6 @@ public class IndentCreationRequestDTO {
     
     // Job details list for job/service indents
     private List<JobDetailsRequestDTO> jobDetails;
+    // Add this field
+private String indentorDepartment;
 }

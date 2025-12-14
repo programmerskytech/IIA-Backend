@@ -35,7 +35,16 @@ public ResponseEntity<Object> createEmployeeWithUser(@Valid @RequestBody Employe
     EmployeeDepartmentMasterResponseDto employee = employeeService.createEmployeeDepartmentWithUser(requestDTO);
     return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(employee), HttpStatus.OK);
 }
-
+// Get department by employee name
+@GetMapping("/department/by-name")
+public ResponseEntity<Object> getDepartmentByName(@RequestParam String employeeName) {
+    String department = employeeService.getDepartmentByEmployeeName(employeeName);
+    
+    Map<String, String> response = new HashMap<>();
+    response.put("departmentName", department);
+    
+    return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
+}
 @GetMapping("/roles")
 public ResponseEntity<Object> getAllRoles() {
     List<RoleDto> roles = roleMasterService.getAllRoles();

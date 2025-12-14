@@ -162,8 +162,30 @@ public class IndentCreationController {
 
     }
 
+    @GetMapping("/material/purchase-history/{materialCode}")
+    public ResponseEntity<Object> getMaterialPurchaseHistory(@PathVariable String materialCode) {
+        List<com.astro.dto.workflow.MaterialPurchaseHistoryDTO> purchaseHistory =
+                indentCreationService.getMaterialPurchaseHistory(materialCode);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(purchaseHistory), HttpStatus.OK);
+    }
 
+    @PostMapping("/cancellation/request")
+    public ResponseEntity<Object> requestIndentCancellation(@RequestBody IndentCancellationRequestDto request) {
+        String response = indentCreationService.requestIndentCancellation(request);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
+    }
 
+    @GetMapping("/cancellation/pending")
+    public ResponseEntity<Object> getPendingCancellationRequests() {
+        List<IndentCancellationResponseDto> pendingRequests =
+                indentCreationService.getPendingCancellationRequests();
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(pendingRequests), HttpStatus.OK);
+    }
 
+    @PostMapping("/cancellation/approve")
+    public ResponseEntity<Object> approveCancellationRequest(@RequestBody IndentCancellationApprovalDto approval) {
+        String response = indentCreationService.approveCancellationRequest(approval);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
+    }
 
 }

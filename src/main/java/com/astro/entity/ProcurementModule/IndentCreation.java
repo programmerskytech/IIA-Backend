@@ -154,6 +154,10 @@ public class IndentCreation {
 
     @Column(name = "updated_date")
     private LocalDateTime updatedDate = LocalDateTime.now();
+
+    // Add this column
+@Column(name = "indentor_department")
+private String indentorDepartment;
     
     // Helper methods to convert between List and comma-separated String
     public List<String> getRateContractJobCodesAsList() {

@@ -49,5 +49,10 @@ public class ProjectMasterController {
         return ResponseEntity.ok("project master deleted successfully. projectCode:"+" " +projectCode);
     }
 
+    @GetMapping("/{projectCode}/available-budget")
+    public ResponseEntity<Object> getProjectAvailableBudget(@PathVariable String projectCode) {
+        ProjectMasterResponseDto responseDTO = projectMasterService.getProjectAvailableBudget(projectCode);
+        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(responseDTO), HttpStatus.OK);
+    }
 
 }

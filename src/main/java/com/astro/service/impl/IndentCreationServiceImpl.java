@@ -76,6 +76,21 @@ public class IndentCreationServiceImpl implements IndentCreationService {
     @Autowired
     private VendorMasterRepository vendorMasterRepository;
 
+    @Autowired
+    private DepartmentComputerPriceLimitRepository departmentComputerPriceLimitRepository;
+
+    @Autowired
+    private com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderAttributesRepository purchaseOrderAttributesRepository;
+
+    @Autowired
+    private com.astro.repository.ProcurementModule.IndentCancellationRequestRepository indentCancellationRequestRepository;
+
+    @Autowired
+    private com.astro.repository.ProcurementModule.IndentIdRepository indentIdRepository;
+
+    @Autowired
+    private com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderRepository purchaseOrderRepository;
+
     @Value("${filePath}")
     private String bp;
     private final String basePath;
@@ -214,6 +229,11 @@ public class IndentCreationServiceImpl implements IndentCreationService {
 
         // Process based on indent type
         if ("material".equalsIgnoreCase(indentType)) {
+
+            // Validate computer item prices for department-specific limits
+            if (indentRequestDTO.getEmployeeDepartment() != null && !indentRequestDTO.getEmployeeDepartment().isEmpty()) {
+                validateComputerItemPrices(indentRequestDTO.getMaterialDetails(), indentRequestDTO.getEmployeeDepartment());
+            }
 
             // Save MaterialDetails entities and link them to the indentCreation
             List<MaterialDetails> materialDetailsList = indentRequestDTO.getMaterialDetails().stream().map(materialRequest -> {
@@ -423,6 +443,11 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         // Update details based on indentType
         if ("material".equalsIgnoreCase(indentType)) {
 
+            // Validate computer item prices for department-specific limits
+            if (indentRequestDTO.getEmployeeDepartment() != null && !indentRequestDTO.getEmployeeDepartment().isEmpty()) {
+                validateComputerItemPrices(indentRequestDTO.getMaterialDetails(), indentRequestDTO.getEmployeeDepartment());
+            }
+
             List<MaterialDetails> existingMaterials = indentCreation.getMaterialDetails();
             Map<String, MaterialDetails> existingMap = existingMaterials.stream()
                     .filter(m -> m.getMaterialCode() != null)
@@ -542,164 +567,173 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         return mapToResponseDTO(indentCreation);
     }
 
-    @Override
-    public IndentDataResponseDto getIndentDataById(String indentId) throws IOException {
-        IndentCreation indentCreation = indentCreationRepository.findById(indentId)
-                .orElseThrow(() -> new BusinessException(
-                        new ErrorDetails(
-                                AppConstant.ERROR_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_RESOURCE,
-                                "Indent not found for the provided Indent ID.")
-                ));
+   @Override
+public IndentDataResponseDto getIndentDataById(String indentId) throws IOException {
+    IndentCreation indentCreation = indentCreationRepository.findById(indentId)
+            .orElseThrow(() -> new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_RESOURCE,
+                            "Indent not found for the provided Indent ID.")
+            ));
 
-        IndentDataResponseDto response = new IndentDataResponseDto();
-        response.setIndentorName(indentCreation.getIndentorName());
-        response.setIndentId(indentCreation.getIndentId());
-        response.setIndentorMobileNo(indentCreation.getIndentorMobileNo());
-        response.setIndentorEmailAddress(indentCreation.getIndentorEmailAddress());
-        response.setPriorApprovalsFileName(indentCreation.getUploadingPriorApprovalsFileName());
-        response.setProjectName(indentCreation.getProjectName());
-        response.setProprietaryAndLimitedDeclaration(indentCreation.getProprietaryAndLimitedDeclaration());
-        response.setIsPreBidMeetingRequired(indentCreation.getIsPreBitMeetingRequired());
-        LocalDate Date = indentCreation.getPreBidMeetingDate();
-        if (Date != null) {
-            response.setPreBidMeetingDate(CommonUtils.convertDateToString(Date));
-        } else {
-            indentCreation.setPreBidMeetingDate(null);
-        }
-        response.setPreBidMeetingVenue(indentCreation.getPreBidMeetingVenue());
-        response.setIsItARateContractIndent(indentCreation.getIsItARateContractIndent());
-        response.setEstimatedRate(indentCreation.getEstimatedRate());
-        response.setPeriodOfContract(indentCreation.getPeriodOfContract());
-        response.setSingleAndMultipleJob(indentCreation.getRateContractJobCodes());
-        response.setTechnicalSpecificationsFile(indentCreation.getTechnicalSpecificationsFileName());
-        response.setDraftFileName(indentCreation.getDraftEOIOrRFPFileName());
-        response.setPacAndBrandFileName(indentCreation.getUploadPACOrBrandPACFileName());
-        if (indentCreation.getUploadingPriorApprovalsFileName() == null || indentCreation.getUploadingPriorApprovalsFileName().isEmpty()) {
-            response.setUploadingPriorApprovalsFileName(null);
-        } else {
-            response.setUploadingPriorApprovalsFileName(
-                    convertFilesToBase64(indentCreation.getUploadingPriorApprovalsFileName(), basePath));
-        }
-        if (indentCreation.getTechnicalSpecificationsFileName() == null || indentCreation.getTechnicalSpecificationsFileName().isEmpty()) {
-            response.setTechnicalSpecificationsFileName(null);
-        } else {
-            response.setTechnicalSpecificationsFileName(
-                    convertFilesToBase64(indentCreation.getTechnicalSpecificationsFileName(), basePath));
-        }
-        if (indentCreation.getDraftEOIOrRFPFileName() == null || indentCreation.getDraftEOIOrRFPFileName().isEmpty()) {
-            response.setDraftEOIOrRFPFileName(null);
-        } else {
-            response.setDraftEOIOrRFPFileName(
-                    convertFilesToBase64(indentCreation.getDraftEOIOrRFPFileName(), basePath));
-        }
+    IndentDataResponseDto response = new IndentDataResponseDto();
+    response.setIndentorName(indentCreation.getIndentorName());
+    response.setIndentId(indentCreation.getIndentId());
+    response.setIndentorMobileNo(indentCreation.getIndentorMobileNo());
+    response.setIndentorEmailAddress(indentCreation.getIndentorEmailAddress());
+    response.setPriorApprovalsFileName(indentCreation.getUploadingPriorApprovalsFileName());
+    response.setProjectName(indentCreation.getProjectName());
+    response.setProprietaryAndLimitedDeclaration(indentCreation.getProprietaryAndLimitedDeclaration());
+    response.setIsPreBidMeetingRequired(indentCreation.getIsPreBitMeetingRequired());
+    LocalDate Date = indentCreation.getPreBidMeetingDate();
+    if (Date != null) {
+        response.setPreBidMeetingDate(CommonUtils.convertDateToString(Date));
+    } else {
+        indentCreation.setPreBidMeetingDate(null);
+    }
+    response.setPreBidMeetingVenue(indentCreation.getPreBidMeetingVenue());
+    response.setIsItARateContractIndent(indentCreation.getIsItARateContractIndent());
+    response.setEstimatedRate(indentCreation.getEstimatedRate());
+    response.setPeriodOfContract(indentCreation.getPeriodOfContract());
+    response.setSingleAndMultipleJob(indentCreation.getRateContractJobCodes());
+    response.setTechnicalSpecificationsFile(indentCreation.getTechnicalSpecificationsFileName());
+    response.setDraftFileName(indentCreation.getDraftEOIOrRFPFileName());
+    response.setPacAndBrandFileName(indentCreation.getUploadPACOrBrandPACFileName());
+    if (indentCreation.getUploadingPriorApprovalsFileName() == null || indentCreation.getUploadingPriorApprovalsFileName().isEmpty()) {
+        response.setUploadingPriorApprovalsFileName(null);
+    } else {
+        response.setUploadingPriorApprovalsFileName(
+                convertFilesToBase64(indentCreation.getUploadingPriorApprovalsFileName(), basePath));
+    }
+    if (indentCreation.getTechnicalSpecificationsFileName() == null || indentCreation.getTechnicalSpecificationsFileName().isEmpty()) {
+        response.setTechnicalSpecificationsFileName(null);
+    } else {
+        response.setTechnicalSpecificationsFileName(
+                convertFilesToBase64(indentCreation.getTechnicalSpecificationsFileName(), basePath));
+    }
+    if (indentCreation.getDraftEOIOrRFPFileName() == null || indentCreation.getDraftEOIOrRFPFileName().isEmpty()) {
+        response.setDraftEOIOrRFPFileName(null);
+    } else {
+        response.setDraftEOIOrRFPFileName(
+                convertFilesToBase64(indentCreation.getDraftEOIOrRFPFileName(), basePath));
+    }
 
-        if (indentCreation.getUploadPACOrBrandPACFileName() == null || indentCreation.getUploadPACOrBrandPACFileName().isEmpty()) {
-            response.setUploadPACOrBrandPACFileName(null);
-        } else {
-            response.setUploadPACOrBrandPACFileName(
-                    convertFilesToBase64(indentCreation.getUploadPACOrBrandPACFileName(), basePath));
-        }
-        response.setBrandPac(indentCreation.getBrandPac());
-        response.setJustification(indentCreation.getJustification());
-        response.setBrandAndModel(indentCreation.getBrandAndModel());
-        response.setPurpose(indentCreation.getPurpose());
-        response.setQuarter(indentCreation.getQuarter());
-        response.setProprietaryJustification(indentCreation.getProprietaryJustification());
-        response.setReason(indentCreation.getReason());
-        response.setFileType(indentCreation.getFileType());
-        response.setBuyBack(indentCreation.getBuyBack());
-        if (indentCreation.getUploadBuyBackFileNames() == null || indentCreation.getUploadBuyBackFileNames().isEmpty()) {
-            response.setUploadBuyBackFileNames(null);
-        } else {
-            response.setUploadBuyBackFileNames(convertFilesToBase64(indentCreation.getUploadBuyBackFileNames(), basePath));
-        }
-        response.setBuyBackFileName(indentCreation.getUploadBuyBackFileNames());
-        response.setSerialNumber(indentCreation.getSerialNumber());
-        response.setModelNumber(indentCreation.getModelNumber());
-        LocalDate dateOfPurchase = indentCreation.getDateOfPurchase();
-        if (dateOfPurchase != null) {
-            response.setDateOfPurchase(CommonUtils.convertDateToString(dateOfPurchase));
-        } else {
-            indentCreation.setDateOfPurchase(null);
-        }
-        response.setCreatedBy(indentCreation.getCreatedBy());
-        response.setUpdatedBy(indentCreation.getUpdatedBy());
+    if (indentCreation.getUploadPACOrBrandPACFileName() == null || indentCreation.getUploadPACOrBrandPACFileName().isEmpty()) {
+        response.setUploadPACOrBrandPACFileName(null);
+    } else {
+        response.setUploadPACOrBrandPACFileName(
+                convertFilesToBase64(indentCreation.getUploadPACOrBrandPACFileName(), basePath));
+    }
+    response.setBrandPac(indentCreation.getBrandPac());
+    response.setJustification(indentCreation.getJustification());
+    response.setBrandAndModel(indentCreation.getBrandAndModel());
+    response.setPurpose(indentCreation.getPurpose());
+    response.setQuarter(indentCreation.getQuarter());
+    response.setProprietaryJustification(indentCreation.getProprietaryJustification());
+    response.setReason(indentCreation.getReason());
+    response.setFileType(indentCreation.getFileType());
+    response.setBuyBack(indentCreation.getBuyBack());
+    if (indentCreation.getUploadBuyBackFileNames() == null || indentCreation.getUploadBuyBackFileNames().isEmpty()) {
+        response.setUploadBuyBackFileNames(null);
+    } else {
+        response.setUploadBuyBackFileNames(convertFilesToBase64(indentCreation.getUploadBuyBackFileNames(), basePath));
+    }
+    response.setBuyBackFileName(indentCreation.getUploadBuyBackFileNames());
+    response.setSerialNumber(indentCreation.getSerialNumber());
+    response.setModelNumber(indentCreation.getModelNumber());
+    LocalDate dateOfPurchase = indentCreation.getDateOfPurchase();
+    if (dateOfPurchase != null) {
+        response.setDateOfPurchase(CommonUtils.convertDateToString(dateOfPurchase));
+    } else {
+        indentCreation.setDateOfPurchase(null);
+    }
+    response.setCreatedBy(indentCreation.getCreatedBy());
+    response.setUpdatedBy(indentCreation.getUpdatedBy());
 
-        Optional<WorkflowTransition> lastRecord = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowTransitionIdDesc(indentId);
+    Optional<WorkflowTransition> lastRecord = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowTransitionIdDesc(indentId);
 
-        if (lastRecord.isPresent()) {
-            WorkflowTransition transition = lastRecord.get();
+    if (lastRecord.isPresent()) {
+        WorkflowTransition transition = lastRecord.get();
 
-            response.setApprovedBy(transition.getCurrentRole());
-            String d = CommonUtils.convertDateTooString(transition.getCreatedDate());
-            response.setDate(d);
-            response.setRemarks(transition.getRemarks());
-        }
+        response.setApprovedBy(transition.getCurrentRole());
+        String d = CommonUtils.convertDateTooString(transition.getCreatedDate());
+        response.setDate(d);
+        response.setRemarks(transition.getRemarks());
+    }
 
-        // For now, this still assumes material-based indent for this DTO
-        String materialSubCategory = indentCreation.getMaterialDetails().stream()
-                .map(MaterialDetails::getMaterialSubCategory)
-                .findFirst()
-                .orElse(null);
+    // For now, this still assumes material-based indent for this DTO
+    String materialSubCategory = indentCreation.getMaterialDetails().stream()
+            .map(MaterialDetails::getMaterialSubCategory)
+            .findFirst()
+            .orElse(null);
 
-        if ("Computer & Peripherals".equalsIgnoreCase(materialSubCategory)) {
-            materialSubCategory = "Computer";
-        } else {
-            materialSubCategory = "Normal";
-        }
+    if ("Computer & Peripherals".equalsIgnoreCase(materialSubCategory)) {
+        materialSubCategory = "Computer";
+    } else {
+        materialSubCategory = "Normal";
+    }
 
-        response.setMaterialCategory(materialSubCategory);
-        response.setConsignesLocation(indentCreation.getConsignesLocation());
+    response.setMaterialCategory(materialSubCategory);
+    response.setConsignesLocation(indentCreation.getConsignesLocation());
 
-        // Map material details
-        List<MaterialDetailsResponseDTO> materialDetailsResponse = indentCreation.getMaterialDetails().stream().map(material -> {
-            MaterialDetailsResponseDTO materialResponse = new MaterialDetailsResponseDTO();
-            materialResponse.setMaterialCode(material.getMaterialCode());
-            materialResponse.setMaterialDescription(material.getMaterialDescription());
-            materialResponse.setQuantity(material.getQuantity());
-            materialResponse.setUnitPrice(material.getUnitPrice());
-            materialResponse.setUom(material.getUom());
-            materialResponse.setTotalPrice(material.getTotalPrice());
-            materialResponse.setBudgetCode(material.getBudgetCode());
-            materialResponse.setModeOfProcurement(material.getModeOfProcurement());
-            materialResponse.setMaterialCategory(material.getMaterialCategory());
-            materialResponse.setMaterialSubCategory(material.getMaterialSubCategory());
-            materialResponse.setCurrency(material.getCurrency());
+    // Map material details
+    List<MaterialDetailsResponseDTO> materialDetailsResponse = indentCreation.getMaterialDetails().stream().map(material -> {
+        MaterialDetailsResponseDTO materialResponse = new MaterialDetailsResponseDTO();
+        materialResponse.setMaterialCode(material.getMaterialCode());
+        materialResponse.setMaterialDescription(material.getMaterialDescription());
+        materialResponse.setQuantity(material.getQuantity());
+        materialResponse.setUnitPrice(material.getUnitPrice());
+        materialResponse.setUom(material.getUom());
+        materialResponse.setTotalPrice(material.getTotalPrice());
+        materialResponse.setBudgetCode(material.getBudgetCode());
+        materialResponse.setModeOfProcurement(material.getModeOfProcurement());
+        materialResponse.setMaterialCategory(material.getMaterialCategory());
+        materialResponse.setMaterialSubCategory(material.getMaterialSubCategory());
+        materialResponse.setCurrency(material.getCurrency());
 
-            List<String> vendorNames = vendorNameRepository.findByMaterialId(material.getId())
-                    .stream()
-                    .map(VendorNamesForJobWorkMaterial::getVendorName)
-                    .collect(Collectors.toList());
-            System.out.println("material_id" + material.getId());
-            materialResponse.setVendorNames(vendorNames);
+        List<String> vendorNames = vendorNameRepository.findByMaterialId(material.getId())
+                .stream()
+                .map(VendorNamesForJobWorkMaterial::getVendorName)
+                .collect(Collectors.toList());
+        System.out.println("material_id" + material.getId());
+        materialResponse.setVendorNames(vendorNames);
 
-            return materialResponse;
-        }).collect(Collectors.toList());
+        return materialResponse;
+    }).collect(Collectors.toList());
 
-        // Calculate total price of all materials
-        BigDecimal totalPriceOfAllMaterials = materialDetailsResponse.stream()
-                .map(MaterialDetailsResponseDTO::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    // Calculate total price of all materials
+    BigDecimal totalPriceOfAllMaterials = materialDetailsResponse.stream()
+            .map(MaterialDetailsResponseDTO::getTotalPrice)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        String projectName = indentCreation.getProjectName();// project name is project code
-        BigDecimal allocatedAmount = projectMasterRepository
-                .findByProjectCode(projectName)
-                .map(ProjectMaster::getAllocatedAmount)
-                .orElse(BigDecimal.ZERO);
-        response.setProjectLimit(allocatedAmount);
+    String projectName = indentCreation.getProjectName();// project name is project code
+    BigDecimal allocatedAmount = projectMasterRepository
+            .findByProjectCode(projectName)
+            .map(ProjectMaster::getAllocatedAmount)
+            .orElse(BigDecimal.ZERO);
+    response.setProjectLimit(allocatedAmount);
 
-        System.out.println("allocatedAmount: " + allocatedAmount);
-        response.setTotalPriceOfAllMaterials(totalPriceOfAllMaterials);
+    System.out.println("allocatedAmount: " + allocatedAmount);
+    response.setTotalPriceOfAllMaterials(totalPriceOfAllMaterials);
 
-        response.setMaterialDetails(materialDetailsResponse);
-        WorkflowTransition wt = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowSequenceDesc(indentId);
+    response.setMaterialDetails(materialDetailsResponse);
+    
+    // ✅ FIX: Add null check for WorkflowTransition
+    WorkflowTransition wt = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowSequenceDesc(indentId);
+    
+    if (wt != null) {
         response.setStatus(wt.getStatus());
         response.setProcessStage(wt.getNextRole());
-
-        return response;
+    } else {
+        // Set default values when workflow hasn't been initiated yet
+        response.setStatus("Pending");
+        response.setProcessStage("Not Started");
     }
+
+    return response;
+}
 
     public static List<String> convertFilesToBase64(String fileNames, String basePath) throws IOException {
         List<String> base64List = new ArrayList<>();
@@ -1422,5 +1456,251 @@ public class IndentCreationServiceImpl implements IndentCreationService {
 
         indentCreationRepository.save(indent);
         return "indent saved";
+    }
+
+    /**
+     * Validates computer item prices against department-specific price limits
+     * @param materialDetailsList List of materials to validate
+     * @param departmentName Department name for which to check price limits
+     * @throws InvalidInputException if any computer item exceeds the department's price limit
+     */
+    private void validateComputerItemPrices(List<MaterialDetailsRequestDTO> materialDetailsList, String departmentName) {
+        if (materialDetailsList == null || materialDetailsList.isEmpty()) {
+            return;
+        }
+
+        // Get the price limit for this department (if configured)
+        var priceLimitOptional = departmentComputerPriceLimitRepository
+                .findByDepartmentNameIgnoreCaseAndIsActiveTrue(departmentName);
+
+        if (priceLimitOptional.isEmpty()) {
+            // No price limit configured for this department, allow all purchases
+            return;
+        }
+
+        BigDecimal departmentPriceLimit = priceLimitOptional.get().getPriceLimit();
+
+        // Check each material for Computer & Peripherals category
+        for (MaterialDetailsRequestDTO material : materialDetailsList) {
+            if ("Computer & Peripherals".equalsIgnoreCase(material.getMaterialSubCategory())) {
+                if (material.getUnitPrice().compareTo(departmentPriceLimit) > 0) {
+                    throw new InvalidInputException(new ErrorDetails(
+                            AppConstant.ERROR_CODE_INVALID,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            String.format(
+                                    "Computer item '%s' with unit price Rs. %s exceeds the price limit of Rs. %s for department '%s'",
+                                    material.getMaterialDescription(),
+                                    material.getUnitPrice(),
+                                    departmentPriceLimit,
+                                    departmentName
+                            )
+                    ));
+                }
+            }
+        }
+    }
+
+    @Override
+    public List<com.astro.dto.workflow.MaterialPurchaseHistoryDTO> getMaterialPurchaseHistory(String materialCode) {
+        if (materialCode == null || materialCode.trim().isEmpty()) {
+            throw new InvalidInputException(new ErrorDetails(
+                    AppConstant.ERROR_CODE_INVALID,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "Material code is required to fetch purchase history"
+            ));
+        }
+
+        List<com.astro.dto.workflow.MaterialPurchaseHistoryDTO> purchaseHistory =
+                purchaseOrderAttributesRepository.findPurchaseHistoryByMaterialCode(materialCode);
+
+        if (purchaseHistory == null || purchaseHistory.isEmpty()) {
+            throw new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_RESOURCE,
+                            "No purchase history found for material code: " + materialCode
+                    )
+            );
+        }
+
+        return purchaseHistory;
+    }
+
+    @Override
+    @Transactional
+    public String requestIndentCancellation(IndentCancellationRequestDto request) {
+        // Validate indent exists
+        IndentCreation indent = indentCreationRepository.findById(request.getIndentId())
+                .orElseThrow(() -> new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Indent not found for the provided ID: " + request.getIndentId()
+                        )
+                ));
+
+        // Check if there's already a pending cancellation request
+        Optional<com.astro.entity.ProcurementModule.IndentCancellationRequest> existingRequest =
+                indentCancellationRequestRepository.findByIndentIdAndRequestStatus(request.getIndentId(), "PENDING");
+
+        if (existingRequest.isPresent()) {
+            throw new InvalidInputException(new ErrorDetails(
+                    AppConstant.ERROR_CODE_INVALID,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "A cancellation request is already pending for this indent."
+            ));
+        }
+
+        // Validate that there's no active Tender or Purchase Order
+        validateNoActiveTenderOrPO(request.getIndentId());
+
+        // Create cancellation request
+        com.astro.entity.ProcurementModule.IndentCancellationRequest cancellationRequest =
+                new com.astro.entity.ProcurementModule.IndentCancellationRequest();
+        cancellationRequest.setIndentId(request.getIndentId());
+        cancellationRequest.setRequestedBy(request.getRequestedBy());
+        cancellationRequest.setRequestedByName(request.getRequestedByName());
+        cancellationRequest.setCancellationReason(request.getCancellationReason());
+        cancellationRequest.setRequestStatus("PENDING");
+        cancellationRequest.setCreatedDate(LocalDateTime.now());
+        cancellationRequest.setUpdatedDate(LocalDateTime.now());
+
+        indentCancellationRequestRepository.save(cancellationRequest);
+
+        return "Cancellation request submitted successfully. Awaiting approval from Purchase Head/Personnel.";
+    }
+
+    @Override
+    public List<IndentCancellationResponseDto> getPendingCancellationRequests() {
+        List<com.astro.entity.ProcurementModule.IndentCancellationRequest> pendingRequests =
+                indentCancellationRequestRepository.findPendingCancellationRequests();
+
+        return pendingRequests.stream()
+                .map(this::mapToCancellationResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public String approveCancellationRequest(IndentCancellationApprovalDto approval) {
+        // Fetch the cancellation request
+        com.astro.entity.ProcurementModule.IndentCancellationRequest cancellationRequest =
+                indentCancellationRequestRepository.findById(approval.getRequestId())
+                        .orElseThrow(() -> new BusinessException(
+                                new ErrorDetails(
+                                        AppConstant.ERROR_CODE_RESOURCE,
+                                        AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                        AppConstant.ERROR_TYPE_RESOURCE,
+                                        "Cancellation request not found."
+                                )
+                        ));
+
+        // Validate request is still pending
+        if (!"PENDING".equals(cancellationRequest.getRequestStatus())) {
+            throw new InvalidInputException(new ErrorDetails(
+                    AppConstant.ERROR_CODE_INVALID,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "This cancellation request has already been processed."
+            ));
+        }
+
+        // If approved, validate again that no tender/PO exists and cancel the indent
+        if ("APPROVED".equals(approval.getApprovalStatus())) {
+            validateNoActiveTenderOrPO(cancellationRequest.getIndentId());
+
+            // Cancel the indent
+            IndentCreation indent = indentCreationRepository.findById(cancellationRequest.getIndentId())
+                    .orElseThrow(() -> new BusinessException(
+                            new ErrorDetails(
+                                    AppConstant.ERROR_CODE_RESOURCE,
+                                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                    AppConstant.ERROR_TYPE_RESOURCE,
+                                    "Indent not found."
+                            )
+                    ));
+
+            indent.setCancelStatus(true);
+            indent.setCancelRemarks(cancellationRequest.getCancellationReason());
+            indentCreationRepository.save(indent);
+        }
+
+        // Update cancellation request status
+        cancellationRequest.setRequestStatus(approval.getApprovalStatus());
+        cancellationRequest.setApprovedBy(approval.getApprovedBy());
+        cancellationRequest.setApprovedByName(approval.getApprovedByName());
+        cancellationRequest.setApprovalRemarks(approval.getApprovalRemarks());
+        cancellationRequest.setApprovalDate(LocalDateTime.now());
+        cancellationRequest.setUpdatedDate(LocalDateTime.now());
+
+        indentCancellationRequestRepository.save(cancellationRequest);
+
+        if ("APPROVED".equals(approval.getApprovalStatus())) {
+            return "Cancellation request approved. Indent " + cancellationRequest.getIndentId() + " has been cancelled.";
+        } else {
+            return "Cancellation request rejected.";
+        }
+    }
+
+    /**
+     * Validates that there's no active Tender or Purchase Order for the given indent
+     * @param indentId The indent ID to validate
+     * @throws InvalidInputException if there's an active Tender or PO
+     */
+    private void validateNoActiveTenderOrPO(String indentId) {
+        // Check if indent is linked to any tender
+        Optional<com.astro.entity.ProcurementModule.IndentId> indentIdEntity =
+                indentIdRepository.findByIndentId(indentId);
+
+        if (indentIdEntity.isPresent() && indentIdEntity.get().getTenderRequest() != null) {
+            String tenderId = indentIdEntity.get().getTenderRequest().getTenderId();
+
+            // Check if there's a purchase order for this tender
+            com.astro.entity.ProcurementModule.PurchaseOrder purchaseOrder =
+                    purchaseOrderRepository.findByTenderId(tenderId);
+
+            if (purchaseOrder != null) {
+                throw new InvalidInputException(new ErrorDetails(
+                        AppConstant.ERROR_CODE_INVALID,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                        AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot cancel indent. An active Purchase Order (PO ID: " + purchaseOrder.getPoId() +
+                                ") exists for this indent. Please cancel the Purchase Order first."
+                ));
+            }
+
+            throw new InvalidInputException(new ErrorDetails(
+                    AppConstant.ERROR_CODE_INVALID,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot cancel indent. An active Tender (Tender ID: " + tenderId +
+                            ") exists for this indent. Please cancel the Tender first."
+            ));
+        }
+    }
+
+    /**
+     * Maps IndentCancellationRequest entity to IndentCancellationResponseDto
+     */
+    private IndentCancellationResponseDto mapToCancellationResponseDto(
+            com.astro.entity.ProcurementModule.IndentCancellationRequest request) {
+        IndentCancellationResponseDto dto = new IndentCancellationResponseDto();
+        dto.setId(request.getId());
+        dto.setIndentId(request.getIndentId());
+        dto.setRequestedBy(request.getRequestedBy());
+        dto.setRequestedByName(request.getRequestedByName());
+        dto.setCancellationReason(request.getCancellationReason());
+        dto.setRequestStatus(request.getRequestStatus());
+        dto.setApprovedBy(request.getApprovedBy());
+        dto.setApprovedByName(request.getApprovedByName());
+        dto.setApprovalRemarks(request.getApprovalRemarks());
+        dto.setApprovalDate(request.getApprovalDate());
+        dto.setCreatedDate(request.getCreatedDate());
+        return dto;
     }
 }

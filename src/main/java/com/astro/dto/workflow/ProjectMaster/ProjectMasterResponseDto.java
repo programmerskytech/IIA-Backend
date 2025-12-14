@@ -11,6 +11,7 @@ public class ProjectMasterResponseDto {
     private String projectNameDescription;
     private String financialYear;
     private BigDecimal allocatedAmount;
+    private BigDecimal availableProjectLimit;
     private String departmentDivision;
     private String budgetType;
     private String startDate;

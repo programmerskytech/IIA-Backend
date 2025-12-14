@@ -28,6 +28,9 @@ public class ProjectMaster {
     @Column(name = "allocated_amount")
     private BigDecimal allocatedAmount;
 
+    @Column(name = "available_project_limit")
+    private BigDecimal availableProjectLimit;
+
     @Column(name = "department_division")
     private String departmentDivision;
 

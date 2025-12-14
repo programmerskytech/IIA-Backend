@@ -14,6 +14,8 @@ import com.astro.util.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +24,9 @@ import java.util.stream.Collectors;
 public class ProjectMasterServiceImpl implements ProjectMasterService {
     @Autowired
     private ProjectMasterRepository projectMasterRepository;
+
+    @Autowired
+    private com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderRepository purchaseOrderRepository;
     @Override
     public ProjectMasterResponseDto createProjectMaster(ProjectMasterRequestDTO projectMasterRequestDTO) {
 
@@ -133,6 +138,62 @@ public class ProjectMasterServiceImpl implements ProjectMasterService {
     }
 
 
+    @Override
+    public ProjectMasterResponseDto getProjectAvailableBudget(String projectCode) {
+        ProjectMaster projectMaster = projectMasterRepository.findById(projectCode)
+                .orElseThrow(() -> new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Project master not found for the provided project code."
+                        )
+                ));
+
+        // Calculate total PO value for this project
+        BigDecimal totalPoValue = purchaseOrderRepository.getTotalPoValueByProjectName(projectMaster.getProjectNameDescription());
+
+        if (totalPoValue == null) {
+            totalPoValue = BigDecimal.ZERO;
+        }
+
+        // Calculate available budget
+        BigDecimal availableBudget = projectMaster.getAllocatedAmount().subtract(totalPoValue);
+        projectMaster.setAvailableProjectLimit(availableBudget);
+
+        ProjectMasterResponseDto responseDTO = mapToResponseDTO(projectMaster);
+        responseDTO.setAvailableProjectLimit(availableBudget);
+
+        return responseDTO;
+    }
+
+    @Override
+    @Transactional
+    public void updateProjectAvailableBudget(String projectCode) {
+        ProjectMaster projectMaster = projectMasterRepository.findById(projectCode)
+                .orElseThrow(() -> new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Project master not found for the provided project code."
+                        )
+                ));
+
+        // Calculate total PO value for this project
+        BigDecimal totalPoValue = purchaseOrderRepository.getTotalPoValueByProjectName(projectMaster.getProjectNameDescription());
+
+        if (totalPoValue == null) {
+            totalPoValue = BigDecimal.ZERO;
+        }
+
+        // Update available budget
+        BigDecimal availableBudget = projectMaster.getAllocatedAmount().subtract(totalPoValue);
+        projectMaster.setAvailableProjectLimit(availableBudget);
+
+        projectMasterRepository.save(projectMaster);
+    }
+
     private ProjectMasterResponseDto mapToResponseDTO(ProjectMaster projectMaster) {
 
         ProjectMasterResponseDto responseDTO = new ProjectMasterResponseDto();
@@ -140,6 +201,7 @@ public class ProjectMasterServiceImpl implements ProjectMasterService {
         responseDTO.setProjectNameDescription(projectMaster.getProjectNameDescription());
         responseDTO.setFinancialYear(projectMaster.getFinancialYear());
         responseDTO.setAllocatedAmount(projectMaster.getAllocatedAmount());
+        responseDTO.setAvailableProjectLimit(projectMaster.getAvailableProjectLimit());
         responseDTO.setDepartmentDivision(projectMaster.getDepartmentDivision());
         responseDTO.setBudgetType(projectMaster.getBudgetType());
         LocalDate startDate =projectMaster.getStartDate();

@@ -71,4 +71,6 @@ public class IndentCreationResponseDTO {
     private String employeeId;
     private String employeeName;
     private String employeeDept;
+    // Add this field
+private String indentorDepartment;
 }

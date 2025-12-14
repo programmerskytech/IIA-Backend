@@ -33,19 +33,20 @@ public interface EmployeeDepartmentMasterService {
     List<DepartmentDto> getAllDepartments();
 
     // Save as draft
-EmployeeDepartmentMasterResponseDto saveAsDraft(EmployeeDepartmentMasterRequestDto requestDto);
+    EmployeeDepartmentMasterResponseDto saveAsDraft(EmployeeDepartmentMasterRequestDto requestDto);
 
-// Get all drafts by user
-List<EmployeeDepartmentMasterResponseDto> getDraftsByUser(String userId);
+    // Get all drafts by user
+    List<EmployeeDepartmentMasterResponseDto> getDraftsByUser(String userId);
 
-// Get all drafts
-List<EmployeeDepartmentMasterResponseDto> getAllDrafts();
+    // Get all drafts
+    List<EmployeeDepartmentMasterResponseDto> getAllDrafts();
 
-// Submit draft (convert draft to final)
+    // Submit draft (convert draft to final)
+    EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, EmployeeDepartmentMasterRequestDto requestDto);
 
-EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, EmployeeDepartmentMasterRequestDto requestDto);
-
-// Add this method
-List<employeedto> getEmployeesByDepartment(String departmentName);
-
+    // Add this method
+    List<employeedto> getEmployeesByDepartment(String departmentName);
+    
+    // ✅ ADD THIS: Get department by employee name
+    String getDepartmentByEmployeeName(String employeeName);
 }

@@ -14,6 +14,9 @@ public interface ProjectMasterService {
     public ProjectMasterResponseDto getProjectMasterById(String projectCode);
     public void deleteMaterialMaster(String projectCode);
 
+    public ProjectMasterResponseDto getProjectAvailableBudget(String projectCode);
+
+    public void updateProjectAvailableBudget(String projectCode);
 
 
 
