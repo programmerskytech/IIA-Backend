@@ -73,4 +73,14 @@ public class IndentCreationResponseDTO {
     private String employeeDept;
     // Add this field
 private String indentorDepartment;
+
+    // Bug Fix Fields
+    private Boolean isEditable;
+    private Boolean isLockedForTender;
+    private String lockedReason;
+    private Integer version;
+    private String parentIndentId;
+    private String currentStatus;
+    private String currentStage;
+    private Integer approvalLevel;
 }

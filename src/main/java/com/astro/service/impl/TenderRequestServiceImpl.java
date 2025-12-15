@@ -229,6 +229,17 @@ public class TenderRequestServiceImpl implements TenderRequestService {
 
         TRrepo.save(tenderRequest);
 
+        // Bug Fix 2: Lock all indents associated with this tender
+        for (String indentIdStr : tenderRequestDto.getIndentId()) {
+            indentCreationRepository.findById(indentIdStr).ifPresent(indent -> {
+                indent.setIsLockedForTender(true);
+                indent.setLockedReason("Tender " + tenderId + " has been created for this indent");
+                indent.setCurrentStatus("TENDER_CREATED");
+                indent.setCurrentStage("TENDER_GENERATION");
+                indentCreationRepository.save(indent);
+            });
+        }
+
         return mapToResponseDTO(tenderRequest);
     }
 

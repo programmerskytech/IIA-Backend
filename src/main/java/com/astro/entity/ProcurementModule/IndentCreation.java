@@ -143,6 +143,33 @@ public class IndentCreation {
     @Column(name = "cancel_remarks")
     private String cancelRemarks;
 
+    // Bug Fix 1 & 2: Track if indent can be edited and if it's locked after tender creation
+    @Column(name = "is_editable")
+    private Boolean isEditable = true;
+
+    @Column(name = "is_locked_for_tender")
+    private Boolean isLockedForTender = false;
+
+    @Column(name = "locked_reason")
+    private String lockedReason;
+
+    // Bug Fix 3: Version tracking for indent
+    @Column(name = "version")
+    private Integer version = 1;
+
+    @Column(name = "parent_indent_id")
+    private String parentIndentId;
+
+    // Bug Fix 4: Enhanced status tracking
+    @Column(name = "current_status")
+    private String currentStatus = "DRAFT";
+
+    @Column(name = "current_stage")
+    private String currentStage = "INDENT_CREATION";
+
+    @Column(name = "approval_level")
+    private Integer approvalLevel = 0;
+
     @Column(name = "created_by")
     private Integer createdBy;
 

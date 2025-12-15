@@ -225,6 +225,14 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setIndentType(indentType);
         indentCreation.setMaterialCategoryType(indentRequestDTO.getMaterialCategoryType());
 
+        // Bug Fix: Initialize new fields for indent tracking
+        indentCreation.setIsEditable(true);
+        indentCreation.setIsLockedForTender(false);
+        indentCreation.setVersion(1);
+        indentCreation.setCurrentStatus("DRAFT");
+        indentCreation.setCurrentStage("INDENT_CREATION");
+        indentCreation.setApprovalLevel(0);
+
         BigDecimal totalIndentPrice = BigDecimal.ZERO;
 
         // Process based on indent type
@@ -354,6 +362,35 @@ public class IndentCreationServiceImpl implements IndentCreationService {
                                 AppConstant.ERROR_TYPE_VALIDATION,
                                 "indent not found for the provided indent ID.")
                 ));
+
+        // Bug Fix 2: Check if indent is locked due to tender creation
+        if (Boolean.TRUE.equals(indentCreation.getIsLockedForTender())) {
+            throw new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Indent is locked for editing as tender has been created. Reason: " + indentCreation.getLockedReason())
+            );
+        }
+
+        // Bug Fix 1: Check if indent is editable (workflow-based edit restriction)
+        if (Boolean.FALSE.equals(indentCreation.getIsEditable())) {
+            throw new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Indent is not editable. It can only be edited when sent back by an approver for revision.")
+            );
+        }
+
+        // Bug Fix 3: Increment version on update
+        Integer currentVersion = indentCreation.getVersion();
+        if (currentVersion == null) {
+            currentVersion = 1;
+        }
+        indentCreation.setVersion(currentVersion + 1);
 
         // Determine indent type (use request if given, otherwise existing, default material)
         String indentType = indentRequestDTO.getIndentType();
@@ -1135,6 +1172,16 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
 
         System.out.println("allocatedAmount: " + allocatedAmount);
         response.setTotalPriceOfAllMaterials(totalPriceOfAllMaterials);
+
+        // Bug Fix: Map new fields to response
+        response.setIsEditable(indentCreation.getIsEditable());
+        response.setIsLockedForTender(indentCreation.getIsLockedForTender());
+        response.setLockedReason(indentCreation.getLockedReason());
+        response.setVersion(indentCreation.getVersion());
+        response.setParentIndentId(indentCreation.getParentIndentId());
+        response.setCurrentStatus(indentCreation.getCurrentStatus());
+        response.setCurrentStage(indentCreation.getCurrentStage());
+        response.setApprovalLevel(indentCreation.getApprovalLevel());
 
         return response;
     }

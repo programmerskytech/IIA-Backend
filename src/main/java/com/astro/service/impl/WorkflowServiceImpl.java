@@ -908,6 +908,21 @@ public class WorkflowServiceImpl implements WorkflowService {
             nextWorkflowTransition.setWorkflowSequence(currentWorkflowTransition.getWorkflowSequence() + 1);
 
             workflowTransitionRepository.save(nextWorkflowTransition);
+
+            // Bug Fix 1: Make indent editable when sent back to Indent Creator
+            if ("Indent Workflow".equalsIgnoreCase(currentWorkflowTransition.getWorkflowName())
+                && "Indent Creator".equalsIgnoreCase(transitionActionReqDto.getAssignmentRole())) {
+                String requestId = currentWorkflowTransition.getRequestId();
+                if (requestId != null && requestId.startsWith("IND")) {
+                    indentCreationRepository.findById(requestId).ifPresent(indent -> {
+                        indent.setIsEditable(true);
+                        indent.setCurrentStatus("CHANGE_REQUESTED");
+                        indent.setCurrentStage("INDENT_REVISION");
+                        indentCreationRepository.save(indent);
+                    });
+                }
+            }
+
             return mapToWorkflowTransitionDto(nextWorkflowTransition);
         } else {
             throw new InvalidInputException(new ErrorDetails(AppConstant.USER_INVALID_INPUT, AppConstant.ERROR_TYPE_CODE_VALIDATION,
@@ -1098,6 +1113,31 @@ public class WorkflowServiceImpl implements WorkflowService {
         //validation for tender workflow
         if (WorkflowName.TENDER_EVALUATOR.getValue().equalsIgnoreCase(currentWorkflowTransition.getWorkflowName())) {
             validateTenderWorkFlow(currentWorkflowTransition, nextWorkflowTransition, AppConstant.APPROVE_TYPE);
+        }
+
+        // Bug Fix 1 & 4: Update indent status and editability when approved
+        if ("Indent Workflow".equalsIgnoreCase(currentWorkflowTransition.getWorkflowName())) {
+            String requestId = currentWorkflowTransition.getRequestId();
+            if (requestId != null && requestId.startsWith("IND")) {
+                // Make final copy for lambda
+                final WorkflowTransition finalNextWorkflowTransition = nextWorkflowTransition;
+
+                indentCreationRepository.findById(requestId).ifPresent(indent -> {
+                    // Make indent non-editable after submission/approval
+                    indent.setIsEditable(false);
+
+                    // Update status based on workflow completion
+                    if (AppConstant.COMPLETED_TYPE.equalsIgnoreCase(finalNextWorkflowTransition.getStatus())) {
+                        indent.setCurrentStatus("APPROVED");
+                        indent.setCurrentStage("INDENT_APPROVED");
+                    } else {
+                        indent.setCurrentStatus("IN_APPROVAL");
+                        indent.setCurrentStage("INDENT_APPROVAL_LEVEL_" + finalNextWorkflowTransition.getWorkflowSequence());
+                        indent.setApprovalLevel(finalNextWorkflowTransition.getWorkflowSequence());
+                    }
+                    indentCreationRepository.save(indent);
+                });
+            }
         }
 
         return mapToWorkflowTransitionDto(nextWorkflowTransition);
