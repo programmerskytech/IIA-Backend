@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
@@ -152,40 +153,87 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDto createUserWithEncryption(userRequestDto userDto) {
-        // Check if user with this employee ID already exists
-        Optional<UserMaster> existingUser = userMasterRepository.findByEmployeeId(userDto.getEmployeeId());
-        if(existingUser.isPresent()) {
+        // Validate required fields
+        if(userDto.getUserName() == null || userDto.getUserName().trim().isEmpty()) {
             throw new BusinessException(
                 new ErrorDetails(
                     AppConstant.ERROR_CODE_RESOURCE,
                     AppConstant.ERROR_TYPE_CODE_RESOURCE,
                     AppConstant.ERROR_TYPE_VALIDATION,
-                    "User already exists for this employee ID"
+                    "Username is required"
                 )
             );
         }
-        
+
+        if(userDto.getEmail() == null || userDto.getEmail().trim().isEmpty()) {
+            throw new BusinessException(
+                new ErrorDetails(
+                    AppConstant.ERROR_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "Email is required"
+                )
+            );
+        }
+
+        if(userDto.getPassword() == null || userDto.getPassword().trim().isEmpty()) {
+            throw new BusinessException(
+                new ErrorDetails(
+                    AppConstant.ERROR_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "Password is required"
+                )
+            );
+        }
+
+        // Check if user with this employee ID already exists (only if employeeId is provided)
+        if(userDto.getEmployeeId() != null && !userDto.getEmployeeId().trim().isEmpty()) {
+            Optional<UserMaster> existingUser = userMasterRepository.findByEmployeeId(userDto.getEmployeeId());
+            if(existingUser.isPresent()) {
+                throw new BusinessException(
+                    new ErrorDetails(
+                        AppConstant.ERROR_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_VALIDATION,
+                        "User already exists for this employee ID"
+                    )
+                );
+            }
+        }
+
         UserMaster userMaster = new UserMaster();
         userMaster.setUserName(userDto.getUserName());
-        userMaster.setMobileNumber(userDto.getMobileNumber());
-        
+
+        // Set mobileNumber - use empty string if null to avoid database constraint issues
+        userMaster.setMobileNumber(userDto.getMobileNumber() != null ? userDto.getMobileNumber() : "");
+
         // Encrypt password before saving
         userMaster.setPassword(passwordEncoder.encode(userDto.getPassword()));
-        
+
         userMaster.setEmail(userDto.getEmail());
         userMaster.setCreatedBy(userDto.getCreatedBy());
-        userMaster.setEmployeeId(userDto.getEmployeeId());
 
-        // Save role names as comma-separated string
-        String rolesAsString = String.join(",", userDto.getRoleNames());
-        userMaster.setRoleName(rolesAsString);
+        // Set employeeId - use empty string if null
+        userMaster.setEmployeeId(userDto.getEmployeeId() != null ? userDto.getEmployeeId() : "");
+
+        // Determine role names - support both single roleName and list roleNames
+        List<String> rolesToAssign = new ArrayList<>();
+        if (userDto.getRoleNames() != null && !userDto.getRoleNames().isEmpty()) {
+            rolesToAssign = userDto.getRoleNames();
+        } else if (userDto.getRoleName() != null && !userDto.getRoleName().trim().isEmpty()) {
+            rolesToAssign.add(userDto.getRoleName());
+        }
+
+        // Don't save role_name in user_master - roles are properly stored in user_role_master table
+        userMaster.setRoleName(null);
 
         // Save user
         userMasterRepository.save(userMaster);
 
         // Save each role in user_role_master
-        for (String roleName : userDto.getRoleNames()) {
-            RoleMaster role = roleMasterRepository.findByRoleName(roleName)
+        for (String roleName : rolesToAssign) {
+            RoleMaster role = roleMasterRepository.findFirstByRoleName(roleName)
                 .orElseThrow(() -> new BusinessException(
                     new ErrorDetails(
                         AppConstant.ERROR_CODE_RESOURCE,
@@ -331,7 +379,9 @@ public class UserServiceImpl implements UserService {
         userDto.setUserName(userMaster.getUserName());
         // Don't return password in DTO
         userDto.setPassword(null);
+        userDto.setEmail(userMaster.getEmail());
         userDto.setMobileNumber(userMaster.getMobileNumber());
+        userDto.setEmployeeId(userMaster.getEmployeeId());
         userDto.setRoleName(userMaster.getRoleName());
         userDto.setCreatedDate(userMaster.getCreatedDate());
         userDto.setCreatedBy(userMaster.getCreatedBy());

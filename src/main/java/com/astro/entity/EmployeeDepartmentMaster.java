@@ -6,6 +6,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -19,7 +20,14 @@ public class EmployeeDepartmentMaster {
     
     @Column(name = "employee_name", nullable = false)
     private String employeeName;
-    
+
+    // Split name fields (NEW)
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+
     @Column(name = "department_name", nullable = false)
     private String departmentName;
     
@@ -38,7 +46,36 @@ public class EmployeeDepartmentMaster {
     
     @Column(name = "address", nullable = false, columnDefinition = "TEXT")
     private String address;
-    
+
+    // Split address fields (NEW)
+    @Column(name = "street_address", length = 255)
+    private String streetAddress;
+
+    @Column(name = "city", length = 100)
+    private String city;
+
+    @Column(name = "state", length = 100)
+    private String state;
+
+    @Column(name = "zip_code", length = 20)
+    private String zipCode;
+
+    // Additional employment fields (NEW)
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "manager", length = 100)
+    private String manager;
+
+    @Column(name = "employment_type", length = 50)
+    private String employmentType; // Full-time, Part-time, Contract
+
+    @Column(name = "hire_date")
+    private LocalDate hireDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate; // Resignation/Termination date (optional)
+
     // Status field - Active or Inactive
     @Column(name = "status", nullable = false)
     private String status = "Active";

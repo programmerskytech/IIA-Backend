@@ -1,10 +1,14 @@
 package com.astro.service.impl;
 
+import com.astro.dto.workflow.PaymentVoucherReportDto;
 import com.astro.dto.workflow.PaymentVoucherReportResponse;
 import com.astro.service.TallyIntegrationService;
+import com.astro.util.APIResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -13,6 +17,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class TallyIntegrationServiceImpl implements TallyIntegrationService {
@@ -48,14 +54,72 @@ public class TallyIntegrationServiceImpl implements TallyIntegrationService {
             headers.set("Accept", "application/json");
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<PaymentVoucherReportResponse> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity, PaymentVoucherReportResponse.class);
+            // Use APIResponse to handle the ResponseBuilder wrapped response
+            ResponseEntity<APIResponse> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, APIResponse.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                PaymentVoucherReportResponse data = response.getBody();
+                APIResponse apiResponse = response.getBody();
+
+                if (apiResponse == null) {
+                    logger.error("API Response body is null");
+                    return null;
+                }
+
+                // Convert APIResponse to PaymentVoucherReportResponse
+                PaymentVoucherReportResponse result = new PaymentVoucherReportResponse();
+
+                // Map response status
+                PaymentVoucherReportResponse.ResponseStatus responseStatus = new PaymentVoucherReportResponse.ResponseStatus();
+                if (apiResponse.getResponseStatus() != null) {
+                    responseStatus.setStatusCode(apiResponse.getResponseStatus().getStatusCode());
+                    responseStatus.setMessage(apiResponse.getResponseStatus().getMessage());
+                    responseStatus.setErrorCode(apiResponse.getResponseStatus().getErrorCode() != null ?
+                            String.valueOf(apiResponse.getResponseStatus().getErrorCode()) : null);
+                    responseStatus.setErrorType(apiResponse.getResponseStatus().getErrorType());
+                }
+                result.setResponseStatus(responseStatus);
+
+                // Convert responseData (List<PaymentVoucherReportDto>) to List<PaymentVoucherData>
+                if (apiResponse.getResponseData() != null) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    List<PaymentVoucherReportDto> dtoList = mapper.convertValue(
+                            apiResponse.getResponseData(),
+                            mapper.getTypeFactory().constructCollectionType(List.class, PaymentVoucherReportDto.class)
+                    );
+
+                    List<PaymentVoucherReportResponse.PaymentVoucherData> dataList = new ArrayList<>();
+                    for (PaymentVoucherReportDto dto : dtoList) {
+                        PaymentVoucherReportResponse.PaymentVoucherData data = new PaymentVoucherReportResponse.PaymentVoucherData();
+                        data.setPaymentVoucherNumber(dto.getPaymentVoucherNumber());
+                        data.setPaymentVoucherDate(dto.getPaymentVoucherDate());
+                        data.setPaymentVoucherIsFor(dto.getPaymentVoucherIsFor());
+                        data.setPurchaseOrderId(dto.getPurchaseOrderId());
+                        data.setGrnNumber(dto.getGrnNumber());
+                        data.setPaymentVoucherType(dto.getPaymentVoucherType());
+                        data.setVendorName(dto.getVendorName());
+                        data.setVendorInvoiceNumber(dto.getVendorInvoiceNumber());
+                        data.setVendorInvoiceDate(dto.getVendorInvoiceDate());
+                        data.setCurrency(dto.getCurrency());
+                        data.setExchangeRate(dto.getExchangeRate());
+                        data.setRemarks(dto.getRemarks());
+                        data.setTotalAmount(dto.getTotalAmount() != null ? dto.getTotalAmount().doubleValue() : null);
+                        data.setPartialAmount(dto.getPartialAmount() != null ? dto.getPartialAmount().doubleValue() : null);
+                        data.setAdvanceAmount(dto.getAdvanceAmount() != null ? dto.getAdvanceAmount().doubleValue() : null);
+                        data.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount().doubleValue() : null);
+                        data.setSoId(dto.getSoId());
+                        data.setCreatedBy(dto.getCreatedBy());
+                        data.setCreatedDate(dto.getCreatedDate() != null ? dto.getCreatedDate().toString() : null);
+                        // Note: materials mapping would need PaymentVoucherMaterialDto to be checked
+                        data.setMaterials(null); // Set to null for now as material DTO structure may differ
+                        dataList.add(data);
+                    }
+                    result.setResponseData(dataList);
+                }
+
                 logger.info("Successfully fetched {} payment vouchers",
-                        data.getResponseData() != null ? data.getResponseData().size() : 0);
-                return data;
+                        result.getResponseData() != null ? result.getResponseData().size() : 0);
+                return result;
             } else {
                 logger.error("Failed to fetch payment voucher data. Status: {}", response.getStatusCode());
                 return null;

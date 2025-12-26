@@ -144,7 +144,7 @@ public class CommonUtils {
        return LocalDate.parse(dateString, formatter);
    }
     public static LocalDate convertIsoDateStringToDateObject(String dateString) {
-        if (dateString == null || dateString.trim().isEmpty()) {
+        if (dateString == null || dateString.trim().isEmpty() || dateString.equalsIgnoreCase("Invalid Date")) {
             return null;
         }
 

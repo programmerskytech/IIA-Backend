@@ -1751,15 +1751,22 @@ public List<ApprovedIndentsDto> getApprovedIndents() {
         Optional<MaterialMasterUtil> Material = materialMasterUtilRepository.findByMaterialCode(materialCode);
 
         MaterialMasterUtil ma = Material.get();
-        UserMaster us  =userMasterRepository.findByUserId(ma.getCreatedBy());
+        UserMaster us = userMasterRepository.findByUserId(ma.getCreatedBy());
         QueueResponse response = new QueueResponse();
         response.setRequestId(material.getMaterialCode());
-    response.setWorkflowName("Material Workflow");
-    response.setWorkflowId(9); // ← ADD THIS LINE
-    response.setAmount(ma.getUnitPrice());
-    response.setIndentorName(us.getUserName());
-    response.setStatus(material.getApprovalStatus());
-    return response;
+        response.setWorkflowName("Material Workflow");
+        response.setWorkflowId(9);
+        response.setAmount(ma.getUnitPrice());
+
+        // Null check to prevent NullPointerException
+        if (us != null) {
+            response.setIndentorName(us.getUserName());
+        } else {
+            response.setIndentorName("Unknown User");
+        }
+
+        response.setStatus(material.getApprovalStatus());
+        return response;
     }
 
 private QueueResponse mapVendorToQueueResponse(VendorRegistrationResponseDTO vendor) {

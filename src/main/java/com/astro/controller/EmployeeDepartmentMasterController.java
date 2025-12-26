@@ -90,6 +90,13 @@ public ResponseEntity<Object> checkUserExists(@PathVariable String employeeId) {
         return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(responseDTO), HttpStatus.OK);
     }
 
+    // Get employee details by user ID (for indent creation auto-fill)
+    @GetMapping("/by-user/{userId}")
+    public ResponseEntity<Object> getEmployeeDetailsByUserId(@PathVariable Integer userId) {
+        EmployeeDepartmentMasterResponseDto responseDTO = employeeService.getEmployeeDetailsByUserId(userId);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(responseDTO), HttpStatus.OK);
+    }
+
     @DeleteMapping("/{employeeId}")
     public ResponseEntity<String> deleteEmployeeMaster(@PathVariable String employeeId) {
         employeeService.deleteEmployeeDepartmentMasterr(employeeId);

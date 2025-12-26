@@ -1,0 +1,47 @@
+package com.astro.entity.AdminPanel;
+
+import lombok.Data;
+import javax.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "workflow_branch_master",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"workflow_id", "branch_code"}))
+@Data
+public class WorkflowBranchMaster {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "branch_id")
+    private Long branchId;
+
+    @Column(name = "workflow_id", nullable = false)
+    private Integer workflowId;
+
+    @Column(name = "branch_code", nullable = false, length = 50)
+    private String branchCode;
+
+    @Column(name = "branch_name", nullable = false, length = 200)
+    private String branchName;
+
+    @Column(name = "branch_description", columnDefinition = "TEXT")
+    private String branchDescription;
+
+    @Column(name = "condition_type", length = 50)
+    private String conditionType; // CATEGORY, LOCATION, AMOUNT, CUSTOM
+
+    @Column(name = "condition_config", columnDefinition = "JSON")
+    private String conditionConfig; // JSON configuration
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @Column(name = "display_order")
+    private Integer displayOrder = 0;
+
+    @Column(name = "created_by", length = 100)
+    private String createdBy;
+
+    @Column(name = "created_date")
+    private LocalDateTime createdDate = LocalDateTime.now();
+}

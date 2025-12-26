@@ -18,6 +18,11 @@ public class ProjectMasterResponseDto {
     private String endDate;
     private String remarksNotes;
     private String projectHead;
+
+    // New Admin Panel fields
+    private String status;
+    private String category;
+
     private String updatedBy;
     private String createdBy;
 

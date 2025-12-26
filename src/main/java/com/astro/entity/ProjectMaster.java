@@ -43,6 +43,13 @@ public class ProjectMaster {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    // New fields for Admin Panel
+    @Column(name = "status", length = 50)
+    private String status = "Active"; // Active, Completed, Closed
+
+    @Column(name = "category", length = 100)
+    private String category;
+
     @Column(name = "remarks_notes")
     private String remarksNotes;
 

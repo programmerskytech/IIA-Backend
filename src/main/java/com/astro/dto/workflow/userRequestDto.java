@@ -17,7 +17,11 @@ public class userRequestDto {
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
-    
+
+    // Support for single role (from frontend)
+    private String roleName;
+
+    // Support for multiple roles (backward compatibility)
     private List<String> roleNames;
     
     @Email(message = "Please provide a valid email")
@@ -27,9 +31,9 @@ public class userRequestDto {
     @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
     @NotBlank(message = "Mobile number is required")
     private String mobileNumber;
-    
-    @NotBlank(message = "Employee ID is required")
+
+    // Employee ID is optional - user may or may not be linked to an employee
     private String employeeId;
-    
+
     private String createdBy;
 }

@@ -38,16 +38,27 @@ public class ProjectMasterServiceImpl implements ProjectMasterService {
         ProjectMaster projectMaster = new ProjectMaster();
         projectMaster.setProjectCode(projectMasterRequestDTO.getProjectCode());
         projectMaster.setProjectNameDescription(projectMasterRequestDTO.getProjectNameDescription());
-        projectMaster.setFinancialYear(projectMasterRequestDTO.getFinancialYear());
+
+        // Handle Invalid Date strings from frontend
+        String financialYear = projectMasterRequestDTO.getFinancialYear();
+        if (financialYear != null && !financialYear.equalsIgnoreCase("Invalid Date")) {
+            projectMaster.setFinancialYear(financialYear);
+        }
+
         projectMaster.setAllocatedAmount(projectMasterRequestDTO.getAllocatedAmount());
         projectMaster.setDepartmentDivision(projectMasterRequestDTO.getDepartmentDivision());
         projectMaster.setBudgetType(projectMasterRequestDTO.getBudgetType());
         String Date = projectMasterRequestDTO.getStartDate();
-        projectMaster.setStartDate(CommonUtils.convertStringToDateObject(Date));
+        projectMaster.setStartDate(CommonUtils.convertIsoDateStringToDateObject(Date));
         String endDate = projectMasterRequestDTO.getEndDate();
-        projectMaster.setEndDate(CommonUtils.convertStringToDateObject(endDate));
+        projectMaster.setEndDate(CommonUtils.convertIsoDateStringToDateObject(endDate));
         projectMaster.setRemarksNotes(projectMasterRequestDTO.getRemarksNotes());
         projectMaster.setProjectHead(projectMasterRequestDTO.getProjectHead());
+
+        // Set new Admin Panel fields
+        projectMaster.setStatus(projectMasterRequestDTO.getStatus() != null ? projectMasterRequestDTO.getStatus() : "Active");
+        projectMaster.setCategory(projectMasterRequestDTO.getCategory());
+
         projectMaster.setCreatedBy(projectMasterRequestDTO.getCreatedBy());
         projectMaster.setUpdatedBy(projectMasterRequestDTO.getUpdatedBy());
 
@@ -73,18 +84,35 @@ public class ProjectMasterServiceImpl implements ProjectMasterService {
 
       //  projectMaster.setProjectCode(projectMasterRequestDTO.getProjectCode());
         projectMaster.setProjectNameDescription(projectMasterRequestDTO.getProjectNameDescription());
-        projectMaster.setFinancialYear(projectMasterRequestDTO.getFinancialYear());
+
+        // Handle Invalid Date strings from frontend
+        String financialYear = projectMasterRequestDTO.getFinancialYear();
+        if (financialYear != null && !financialYear.equalsIgnoreCase("Invalid Date")) {
+            projectMaster.setFinancialYear(financialYear);
+        }
+
         projectMaster.setAllocatedAmount(projectMasterRequestDTO.getAllocatedAmount());
         projectMaster.setDepartmentDivision(projectMasterRequestDTO.getDepartmentDivision());
         projectMaster.setBudgetType(projectMasterRequestDTO.getBudgetType());
         String Date = projectMasterRequestDTO.getStartDate();
-        projectMaster.setStartDate(CommonUtils.convertStringToDateObject(Date));
+        projectMaster.setStartDate(CommonUtils.convertIsoDateStringToDateObject(Date));
         String endDate = projectMasterRequestDTO.getEndDate();
-        projectMaster.setEndDate(CommonUtils.convertStringToDateObject(endDate));
+        projectMaster.setEndDate(CommonUtils.convertIsoDateStringToDateObject(endDate));
         projectMaster.setRemarksNotes(projectMasterRequestDTO.getRemarksNotes());
         projectMaster.setProjectHead(projectMasterRequestDTO.getProjectHead());
+
+        // Update Admin Panel fields
+        if (projectMasterRequestDTO.getStatus() != null) {
+            projectMaster.setStatus(projectMasterRequestDTO.getStatus());
+        }
+        if (projectMasterRequestDTO.getCategory() != null) {
+            projectMaster.setCategory(projectMasterRequestDTO.getCategory());
+        }
+
         projectMaster.setCreatedBy(projectMasterRequestDTO.getCreatedBy());
         projectMaster.setUpdatedBy(projectMasterRequestDTO.getUpdatedBy());
+
+        projectMasterRepository.save(projectMaster);
 
         return mapToResponseDTO(projectMaster);
     }
@@ -210,6 +238,11 @@ public class ProjectMasterServiceImpl implements ProjectMasterService {
         responseDTO.setEndDate(CommonUtils.convertDateToString(endDate));
         responseDTO.setRemarksNotes(projectMaster.getRemarksNotes());
         responseDTO.setProjectHead(projectMaster.getProjectHead());
+
+        // Map new Admin Panel fields
+        responseDTO.setStatus(projectMaster.getStatus());
+        responseDTO.setCategory(projectMaster.getCategory());
+
         responseDTO.setCreatedBy(projectMaster.getCreatedBy());
         responseDTO.setUpdatedBy(projectMaster.getUpdatedBy());
         responseDTO.setCreatedDate(projectMaster.getCreatedDate());

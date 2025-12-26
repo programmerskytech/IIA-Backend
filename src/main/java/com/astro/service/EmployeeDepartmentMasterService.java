@@ -49,4 +49,7 @@ public interface EmployeeDepartmentMasterService {
     
     // ✅ ADD THIS: Get department by employee name
     String getDepartmentByEmployeeName(String employeeName);
+
+    // Get employee details by user ID (for indent creation auto-fill)
+    EmployeeDepartmentMasterResponseDto getEmployeeDetailsByUserId(Integer userId);
 }

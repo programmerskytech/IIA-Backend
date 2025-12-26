@@ -6,12 +6,14 @@ import com.astro.entity.DepartmentMaster;
 import com.astro.entity.DesignationMaster;
 import com.astro.entity.EmployeeDepartmentMaster;
 import com.astro.entity.EmployeeIdSequence;
+import com.astro.entity.UserMaster;
 import com.astro.exception.BusinessException;
 import com.astro.exception.ErrorDetails;
 import com.astro.repository.DepartmentMasterRepository;
 import com.astro.repository.DesignationMasterRepository;
 import com.astro.repository.EmployeeDepartmentMasterRepository;
 import com.astro.repository.EmployeeIdSequenceRepository;
+import com.astro.repository.UserMasterRepository;
 import com.astro.service.EmployeeDepartmentMasterService;
 import com.astro.service.UserService;
 
@@ -38,6 +40,9 @@ public class EmployeeDepartmentMasterServiceImpl implements EmployeeDepartmentMa
     
     @Autowired
     private DepartmentMasterRepository departmentMasterRepository;
+
+    @Autowired
+    private UserMasterRepository userMasterRepository;
 
     @Autowired
 private UserService userService;
@@ -507,8 +512,57 @@ public List<employeedto> getEmployeesByDepartment(String departmentName) {
         .collect(Collectors.toList());
 }
 
+@Override
+public EmployeeDepartmentMasterResponseDto getEmployeeDetailsByUserId(Integer userId) {
+    // Step 1: Get user by userId to get employeeId
+    UserMaster user = userMasterRepository.findById(userId)
+        .orElseThrow(() -> new BusinessException(
+            new ErrorDetails(
+                AppConstant.ERROR_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_RESOURCE,
+                "User not found for the provided user ID: " + userId
+            )
+        ));
 
+    // Step 2: Get employee by employeeId
+    String employeeId = user.getEmployeeId();
 
+    if (employeeId == null || employeeId.trim().isEmpty()) {
+        throw new BusinessException(
+            new ErrorDetails(
+                AppConstant.ERROR_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_RESOURCE,
+                "This user is not linked to any employee record."
+            )
+        );
+    }
 
+    EmployeeDepartmentMaster employee = employeeRepository.findByEmployeeId(employeeId)
+        .orElseThrow(() -> new BusinessException(
+            new ErrorDetails(
+                AppConstant.ERROR_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_RESOURCE,
+                "Employee not found for employee ID: " + employeeId
+            )
+        ));
+
+    // Step 3: Check if employee is active
+    if (!"Active".equalsIgnoreCase(employee.getStatus())) {
+        throw new BusinessException(
+            new ErrorDetails(
+                AppConstant.ERROR_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                AppConstant.ERROR_TYPE_VALIDATION,
+                "Employee account is inactive. Please contact administrator."
+            )
+        );
+    }
+
+    // Step 4: Return employee details
+    return mapToResponseDTO(employee);
+}
 
 }

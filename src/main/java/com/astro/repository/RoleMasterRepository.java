@@ -11,4 +11,5 @@ import java.util.Optional;
 @Repository
 public interface RoleMasterRepository extends JpaRepository<RoleMaster, Integer> {
     Optional<RoleMaster> findByRoleName(String roleName);
+    Optional<RoleMaster> findFirstByRoleName(String roleName);
 }

@@ -1,0 +1,25 @@
+# Handle line endings automatically
+* text=auto
+
+# Java source files
+*.java text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Windows script files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.jar binary
+*.class binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
