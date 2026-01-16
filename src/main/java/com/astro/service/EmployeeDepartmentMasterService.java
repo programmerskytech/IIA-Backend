@@ -52,4 +52,7 @@ public interface EmployeeDepartmentMasterService {
 
     // Get employee details by user ID (for indent creation auto-fill)
     EmployeeDepartmentMasterResponseDto getEmployeeDetailsByUserId(Integer userId);
+
+    // TC_15 FIX: Advanced employee search
+    List<EmployeeDepartmentMasterResponseDto> advancedSearch(String searchTerm, String department, String location);
 }

@@ -228,5 +228,78 @@ public void handlePoApproverEmail(PoFormateDto poData, String purchaseDeptEmail)
     }
 }
 
+// TC_45: Email notification to vendors when tender is amended
+@Async
+public void handleTenderAmendmentEmail(String tenderId,
+                                       TenderWithIndentResponseDTO tenderData,
+                                       String amendmentReason) throws IOException {
+    // Fetch all vendors who have submitted quotations for this tender
+    List<VendorMaster> vendors = vendorRepo.findVendorsByTenderId(tenderId);
+
+    for (VendorMaster vendor : vendors) {
+        if (vendor.getEmailAddress() == null || vendor.getEmailAddress().isEmpty()) continue;
+
+        // Create email context
+        Context vendorContext = new Context();
+        vendorContext.setVariable("vendor", vendor);
+        vendorContext.setVariable("tender", tenderData);
+        vendorContext.setVariable("amendmentReason", amendmentReason);
+        vendorContext.setVariable("version", tenderData.getTenderVersion());
+
+        String emailHtmlBody = templateEngine.process("vendor-tender-amendment-email-template", vendorContext);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(vendor.getEmailAddress());
+            helper.setSubject("Tender Amendment Notification - " + tenderId + " (Version " + tenderData.getTenderVersion() + ")");
+            helper.setText(emailHtmlBody, true);
+            helper.setFrom("iiapdkg@gmail.com");
+
+            mailSender.send(message);
+            System.out.println("Tender Amendment Email Sent to Vendor: " + vendor.getEmailAddress());
+        } catch (Exception e) {
+            System.err.println("Failed to send amendment email to " + vendor.getEmailAddress() + ": " + e.getMessage());
+        }
+    }
+}
+
+// TC_51: Email notification to vendors when tender is cancelled
+@Async
+public void handleTenderCancellationEmail(String tenderId,
+                                         TenderWithIndentResponseDTO tenderData,
+                                         String cancellationReason) throws IOException {
+    // Fetch all vendors who have submitted quotations for this tender
+    List<VendorMaster> vendors = vendorRepo.findVendorsByTenderId(tenderId);
+
+    for (VendorMaster vendor : vendors) {
+        if (vendor.getEmailAddress() == null || vendor.getEmailAddress().isEmpty()) continue;
+
+        // Create email context
+        Context vendorContext = new Context();
+        vendorContext.setVariable("vendor", vendor);
+        vendorContext.setVariable("tender", tenderData);
+        vendorContext.setVariable("cancellationReason", cancellationReason);
+
+        String emailHtmlBody = templateEngine.process("vendor-tender-cancellation-email-template", vendorContext);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(vendor.getEmailAddress());
+            helper.setSubject("Tender Cancellation Notification - " + tenderId);
+            helper.setText(emailHtmlBody, true);
+            helper.setFrom("iiapdkg@gmail.com");
+
+            mailSender.send(message);
+            System.out.println("Tender Cancellation Email Sent to Vendor: " + vendor.getEmailAddress());
+        } catch (Exception e) {
+            System.err.println("Failed to send cancellation email to " + vendor.getEmailAddress() + ": " + e.getMessage());
+        }
+    }
+}
+
 
 }

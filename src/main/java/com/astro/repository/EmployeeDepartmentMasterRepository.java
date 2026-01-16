@@ -41,7 +41,24 @@ public interface EmployeeDepartmentMasterRepository extends JpaRepository<Employ
     // ✅ ADD THIS: Case-insensitive search for employee name
     @Query("SELECT e FROM EmployeeDepartmentMaster e WHERE LOWER(TRIM(e.employeeName)) = LOWER(TRIM(:employeeName)) AND e.status = :status AND e.isDraft = false")
     Optional<EmployeeDepartmentMaster> findByEmployeeNameIgnoreCaseAndStatusAndIsDraftFalse(
-        @Param("employeeName") String employeeName, 
+        @Param("employeeName") String employeeName,
         @Param("status") String status
     );
+
+    // TC_15 FIX: Advanced employee search by department, name, ID, location
+    @Query("SELECT e FROM EmployeeDepartmentMaster e WHERE " +
+           "(:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(e.employeeName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(e.departmentName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(e.location) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(e.designation) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) AND " +
+           "e.isDraft = false")
+    List<EmployeeDepartmentMaster> searchEmployees(@Param("searchTerm") String searchTerm);
+
+    // TC_15 FIX: Search by department only
+    List<EmployeeDepartmentMaster> findByDepartmentNameContainingIgnoreCaseAndIsDraftFalse(String departmentName);
+
+    // TC_15 FIX: Search by location only
+    List<EmployeeDepartmentMaster> findByLocationContainingIgnoreCaseAndIsDraftFalse(String location);
 }

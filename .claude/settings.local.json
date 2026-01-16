@@ -9,7 +9,9 @@
       "Bash(mysql:*)",
       "Bash(where mysql:*)",
       "Bash(git config:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(mvn clean package:*)",
+      "Bash(mvn package:*)"
     ]
   }
 }

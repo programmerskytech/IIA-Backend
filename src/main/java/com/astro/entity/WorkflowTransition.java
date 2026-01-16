@@ -83,4 +83,17 @@ public class WorkflowTransition {
    @Column(name = "CREATEDDATE")
    // @Column(name = "createdDate")
     private Date createdDate;
+
+    // Branch-based workflow fields
+    @Column(name = "BRANCH_ID")
+    private Long branchId; // Links to workflow_branch_master
+
+    @Column(name = "APPROVER_ID")
+    private Long approverId; // Links to approver_master
+
+    @Column(name = "APPROVAL_LEVEL")
+    private Integer approvalLevel; // Current approval level
+
+    @Column(name = "APPROVAL_SEQUENCE")
+    private Integer approvalSequence; // Current approval sequence
 }

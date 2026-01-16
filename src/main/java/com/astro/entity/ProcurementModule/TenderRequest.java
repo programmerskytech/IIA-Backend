@@ -107,6 +107,37 @@ public class TenderRequest {
     @Column(name = "updated_date", nullable = false)
     private LocalDateTime updatedDate = LocalDateTime.now();
 
+    // TC_44: Tender Versioning
+    @Column(name = "tender_version")
+    private Integer tenderVersion = 1;
+
+    // TC_46: Update Reason
+    @Column(name = "update_reason", length = 1000)
+    private String updateReason;
+
+    // TC_47: Pre-bid Meeting Recording
+    @Column(name = "pre_bid_meeting_status")
+    private String preBidMeetingStatus; // "NOT_CONDUCTED", "SCHEDULED", "CONDUCTED"
+
+    @Column(name = "pre_bid_meeting_discussion", length = 5000)
+    private String preBidMeetingDiscussion;
+
+    @Column(name = "pre_bid_meeting_date")
+    private LocalDate preBidMeetingDate;
+
+    // TC_48: Tender Lock after PO Creation
+    @Column(name = "is_locked")
+    private Boolean isLocked = false;
+
+    @Column(name = "locked_reason", length = 500)
+    private String lockedReason;
+
+    @Column(name = "locked_for_po")
+    private String lockedForPO; // PO ID that locked this tender
+
+    @Column(name = "locked_date")
+    private LocalDateTime lockedDate;
+
     private Boolean buyBack;
     private String buyBackAmount;
     private String modelNumber;

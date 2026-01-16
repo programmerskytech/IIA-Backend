@@ -170,7 +170,9 @@ public class LOVServiceImpl implements LOVService {
     public List<LOVMaster> getLOVsByFormAndField(String formName, String fieldName) {
         Optional<DesignatorMaster> designator = getDesignatorByFormAndName(formName, fieldName);
         if (designator.isPresent()) {
-            return lovMasterRepository.findByDesignatorIdAndIsActiveTrueOrderByDisplayOrderAsc(designator.get().getDesignatorId());
+            // TC_13 FIX: Return ALL LOVs (including inactive) so admin panel can show/manage them
+            // Frontend should handle filtering/display of inactive items with visual indicators
+            return lovMasterRepository.findByDesignatorIdOrderByDisplayOrderAsc(designator.get().getDesignatorId());
         }
         return new ArrayList<>();
     }
@@ -253,7 +255,8 @@ public class LOVServiceImpl implements LOVService {
             List<DesignatorMaster> designators = designatorMasterRepository.findByFormIdAndIsActiveTrue(form.get().getFormId());
 
             for (DesignatorMaster designator : designators) {
-                List<LOVMaster> lovs = lovMasterRepository.findByDesignatorIdAndIsActiveTrueOrderByDisplayOrderAsc(designator.getDesignatorId());
+                // TC_13 FIX: Return all LOVs (including inactive) for admin panel
+                List<LOVMaster> lovs = lovMasterRepository.findByDesignatorIdOrderByDisplayOrderAsc(designator.getDesignatorId());
                 result.put(designator.getDesignatorName(), lovs);
             }
         }

@@ -101,7 +101,10 @@ public class UserServiceImpl implements UserService {
             userRoleDto.setUserName(userMaster.getUserName());
             userRoleDto.setMobileNumber(userMaster.getMobileNumber());
             userRoleDto.setEmail(userMaster.getEmail());
-            
+
+            // TC_14 FIX: Set first login flag to prompt password change
+            userRoleDto.setIsFirstLogin(userMaster.getIsFirstLogin() != null ? userMaster.getIsFirstLogin() : true);
+
             List<LoginRoleDto> roleDtos = userRoles.stream().map(role -> {
                 LoginRoleDto dto = new LoginRoleDto();
                 dto.setUserRoleId(role.getUserRoleId());
@@ -187,8 +190,22 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Check if user with this employee ID already exists (only if employeeId is provided)
+        // TC_16 FIX: Validate employee ID exists in employee_department_master table
         if(userDto.getEmployeeId() != null && !userDto.getEmployeeId().trim().isEmpty()) {
+            // First check if employee exists
+            Optional<EmployeeDepartmentMaster> employee = employeeRepo.findByEmployeeId(userDto.getEmployeeId());
+            if(!employee.isPresent()) {
+                throw new BusinessException(
+                    new ErrorDetails(
+                        AppConstant.ERROR_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_VALIDATION,
+                        "Employee ID does not exist in the system. Please register the employee first."
+                    )
+                );
+            }
+
+            // Then check if user already exists for this employee ID
             Optional<UserMaster> existingUser = userMasterRepository.findByEmployeeId(userDto.getEmployeeId());
             if(existingUser.isPresent()) {
                 throw new BusinessException(
@@ -350,7 +367,7 @@ public class UserServiceImpl implements UserService {
                     "User not found."
                 )
             ));
-            
+
         // Verify old password
         if(!passwordEncoder.matches(oldPassword, userMaster.getPassword())) {
             throw new BusinessException(
@@ -362,9 +379,14 @@ public class UserServiceImpl implements UserService {
                 )
             );
         }
-        
+
         // Set new encrypted password
         userMaster.setPassword(passwordEncoder.encode(newPassword));
+
+        // TC_14 FIX: Mark as not first login after password change
+        userMaster.setIsFirstLogin(false);
+        userMaster.setLastPasswordChangeDate(java.time.LocalDateTime.now());
+
         userMasterRepository.save(userMaster);
     }
     

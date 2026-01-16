@@ -34,4 +34,11 @@ public class UserMaster {
 
     private LocalDateTime createdDate = LocalDateTime.now();
 
+    // TC_14 FIX: Track if user has changed password after first login
+    @Column(name = "is_first_login", columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private Boolean isFirstLogin = true;
+
+    @Column(name = "last_password_change_date")
+    private LocalDateTime lastPasswordChangeDate;
+
 }

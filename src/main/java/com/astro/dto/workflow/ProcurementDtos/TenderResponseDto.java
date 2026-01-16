@@ -54,4 +54,21 @@ public class TenderResponseDto {
     private String serialNumber;
     private String dateOfPurchase;
     private String uploadBuyBackFileNames;
+
+    // TC_44: Tender Versioning
+    private Integer tenderVersion;
+
+    // TC_46: Update Reason
+    private String updateReason;
+
+    // TC_47: Pre-bid Meeting Recording
+    private String preBidMeetingStatus;
+    private String preBidMeetingDiscussion;
+    private String preBidMeetingDate;
+
+    // TC_48: Tender Lock Status
+    private Boolean isLocked;
+    private String lockedReason;
+    private String lockedForPO;
+    private LocalDateTime lockedDate;
 }

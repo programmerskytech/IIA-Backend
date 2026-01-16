@@ -183,4 +183,14 @@ public ResponseEntity<Object> getEmployeesByDepartment(@RequestParam String depa
     List<employeedto> response = employeeService.getEmployeesByDepartment(department);
     return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(response), HttpStatus.OK);
 }
+
+    // TC_15 FIX: Advanced employee search with filters
+    @GetMapping("/advanced-search")
+    public ResponseEntity<Object> advancedEmployeeSearch(
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String location) {
+        List<EmployeeDepartmentMasterResponseDto> results = employeeService.advancedSearch(searchTerm, department, location);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(results), HttpStatus.OK);
+    }
 }

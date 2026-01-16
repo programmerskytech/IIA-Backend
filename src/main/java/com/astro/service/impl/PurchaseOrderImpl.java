@@ -248,6 +248,12 @@ public class PurchaseOrderImpl implements PurchaseOrderService {
         existing.setVendorId(purchaseOrderRequestDTO.getVendorId());
       //  existing.setQuotationFileName(dto.getQuotationFileName());
 
+        // TC_48: Lock the tender after PO creation to prevent further updates
+        existing.setIsLocked(true);
+        existing.setLockedReason("Purchase Order " + poId + " has been created for this tender");
+        existing.setLockedForPO(poId);
+        existing.setLockedDate(LocalDateTime.now());
+
         TenderRequest saved = trRepo.save(existing);
         return mapToResponseDTO(purchaseOrder);
     }

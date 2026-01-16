@@ -54,8 +54,18 @@ public class UserMasterController {
         return ResponseEntity.ok("user deleted successfully!");
     }
 
+    // TC_14 FIX: Add password change endpoint
+    @PostMapping("/change-password")
+    public ResponseEntity<Object> changePassword(@RequestBody ChangePasswordRequest request) {
+        userService.changePassword(request.getUserId(), request.getOldPassword(), request.getNewPassword());
+        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse("Password changed successfully"), HttpStatus.OK);
+    }
 
-
-
-
+    // DTO for password change request
+    @lombok.Data
+    public static class ChangePasswordRequest {
+        private Integer userId;
+        private String oldPassword;
+        private String newPassword;
+    }
 }

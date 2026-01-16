@@ -565,4 +565,33 @@ public EmployeeDepartmentMasterResponseDto getEmployeeDetailsByUserId(Integer us
     return mapToResponseDTO(employee);
 }
 
+// TC_15 FIX: Advanced employee search with multiple filters
+@Override
+public List<EmployeeDepartmentMasterResponseDto> advancedSearch(String searchTerm, String department, String location) {
+    List<EmployeeDepartmentMaster> employees;
+
+    // If all filters are null/empty, return all active employees
+    if ((searchTerm == null || searchTerm.trim().isEmpty()) &&
+        (department == null || department.trim().isEmpty()) &&
+        (location == null || location.trim().isEmpty())) {
+        employees = employeeRepository.findByIsDraftFalse();
+    }
+    // If department is specified
+    else if (department != null && !department.trim().isEmpty()) {
+        employees = employeeRepository.findByDepartmentNameContainingIgnoreCaseAndIsDraftFalse(department);
+    }
+    // If location is specified
+    else if (location != null && !location.trim().isEmpty()) {
+        employees = employeeRepository.findByLocationContainingIgnoreCaseAndIsDraftFalse(location);
+    }
+    // Otherwise use general search term
+    else {
+        employees = employeeRepository.searchEmployees(searchTerm);
+    }
+
+    return employees.stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+}
+
 }

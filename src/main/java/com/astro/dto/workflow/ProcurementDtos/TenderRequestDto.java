@@ -58,6 +58,14 @@ public class TenderRequestDto {
     private String dateOfPurchase;
     private List<String> uploadBuyBackFileNames;
 
+    // TC_46: Update Reason
+    private String updateReason;
+
+    // TC_47: Pre-bid Meeting Recording
+    private String preBidMeetingStatus; // "NOT_CONDUCTED", "SCHEDULED", "CONDUCTED"
+    private String preBidMeetingDiscussion;
+    private String preBidMeetingDate;
+
 
 
 }

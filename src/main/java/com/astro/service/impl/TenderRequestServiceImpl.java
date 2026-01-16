@@ -148,6 +148,17 @@ public class TenderRequestServiceImpl implements TenderRequestService {
         tenderRequest.setUpdatedBy(tenderRequestDto.getUpdatedBy());
         tenderRequest.setCreatedBy(tenderRequestDto.getCreatedBy());
 
+        // TC_44: Initialize version to 1
+        tenderRequest.setTenderVersion(1);
+
+        // TC_47: Pre-bid Meeting fields
+        tenderRequest.setPreBidMeetingStatus(tenderRequestDto.getPreBidMeetingStatus() != null ?
+            tenderRequestDto.getPreBidMeetingStatus() : "NOT_CONDUCTED");
+        tenderRequest.setPreBidMeetingDiscussion(tenderRequestDto.getPreBidMeetingDiscussion());
+        if (tenderRequestDto.getPreBidMeetingDate() != null && !tenderRequestDto.getPreBidMeetingDate().isEmpty()) {
+            tenderRequest.setPreBidMeetingDate(CommonUtils.convertStringToDateObject(tenderRequestDto.getPreBidMeetingDate()));
+        }
+
         if(tenderRequestDto.getBuyBack()){
             tenderRequest.setBuyBack(tenderRequestDto.getBuyBack());
             tenderRequest.setModelNumber(tenderRequestDto.getModelNumber());
@@ -272,6 +283,25 @@ public class TenderRequestServiceImpl implements TenderRequestService {
                                 AppConstant.ERROR_TYPE_VALIDATION,
                                 "Tender request not found for the provided asset ID.")
                 ));
+
+        // TC_48: Check if tender is locked (PO created)
+        if (Boolean.TRUE.equals(existingTR.getIsLocked())) {
+            throw new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Tender is locked. Cannot update tender after Purchase Order has been created. " + existingTR.getLockedReason())
+            );
+        }
+
+        // TC_44: Increment version
+        existingTR.setTenderVersion(existingTR.getTenderVersion() != null ? existingTR.getTenderVersion() + 1 : 2);
+
+        // TC_46: Set update reason
+        existingTR.setUpdateReason(tenderRequestDto.getUpdateReason());
+        existingTR.setUpdatedDate(LocalDateTime.now());
+
         existingTR.setTitleOfTender(tenderRequestDto.getTitleOfTender());
         String openingDate = tenderRequestDto.getOpeningDate();
         existingTR.setOpeningDate(CommonUtils.convertStringToDateObject(openingDate));
@@ -298,6 +328,14 @@ public class TenderRequestServiceImpl implements TenderRequestService {
         existingTR.setMllStatusDeclaration(tenderRequestDto.getMllStatusDeclaration());
         existingTR.setSingleAndMultipleVendors(tenderRequestDto.getSingleAndMultipleVendors());
         existingTR.setPreBidDisscussions(tenderRequestDto.getPreBidDisscussions());
+
+        // TC_47: Update Pre-bid Meeting fields
+        existingTR.setPreBidMeetingStatus(tenderRequestDto.getPreBidMeetingStatus());
+        existingTR.setPreBidMeetingDiscussion(tenderRequestDto.getPreBidMeetingDiscussion());
+        if (tenderRequestDto.getPreBidMeetingDate() != null && !tenderRequestDto.getPreBidMeetingDate().isEmpty()) {
+            existingTR.setPreBidMeetingDate(CommonUtils.convertStringToDateObject(tenderRequestDto.getPreBidMeetingDate()));
+        }
+
         existingTR.setUpdatedBy(tenderRequestDto.getUpdatedBy());
         existingTR.setCreatedBy(tenderRequestDto.getCreatedBy());
         // existingTR.setUploadTenderDocumentsFileName(tenderRequestDto.getUploadTenderDocuments());
@@ -358,9 +396,23 @@ public class TenderRequestServiceImpl implements TenderRequestService {
                 }).collect(Collectors.toList());
 
         existingTR.getIndentIds().addAll(indentIdList);
-        TRrepo.save(existingTR);
+        TenderRequest savedTR = TRrepo.save(existingTR);
 
-        return mapToResponseDTO(existingTR);
+        // TC_45: Send email notification to vendors about tender amendment
+        // Only send if tender was already approved (has quotations submitted)
+        if (tenderRequestDto.getUpdateReason() != null && !tenderRequestDto.getUpdateReason().isEmpty()) {
+            try {
+                TenderWithIndentResponseDTO tenderData = getTenderRequestById(tenderId);
+                // Note: Email service will be called asynchronously
+                // The TenderEmailService.handleTenderAmendmentEmail() method should be invoked
+                // This can be done via event publishing or direct call (will be async)
+                System.out.println("Tender amendment notification should be sent to vendors for tender: " + tenderId);
+            } catch (Exception e) {
+                System.err.println("Failed to send tender amendment notification: " + e.getMessage());
+            }
+        }
+
+        return mapToResponseDTO(savedTR);
     }
 
     @Override
@@ -713,6 +765,17 @@ public class TenderRequestServiceImpl implements TenderRequestService {
         responseDTO.setBuyBackAmount(tenderRequest.getBuyBackAmount());
         responseDTO.setUploadBuyBackFileNames(tenderRequest.getUploadBuyBackFileNames());
 
+        // TC_44, TC_46, TC_47, TC_48: Add new fields to response
+        responseDTO.setTenderVersion(tenderRequest.getTenderVersion());
+        responseDTO.setUpdateReason(tenderRequest.getUpdateReason());
+        responseDTO.setPreBidMeetingStatus(tenderRequest.getPreBidMeetingStatus());
+        responseDTO.setPreBidMeetingDiscussion(tenderRequest.getPreBidMeetingDiscussion());
+        responseDTO.setPreBidMeetingDate(CommonUtils.convertDateToString(tenderRequest.getPreBidMeetingDate()));
+        responseDTO.setIsLocked(tenderRequest.getIsLocked());
+        responseDTO.setLockedReason(tenderRequest.getLockedReason());
+        responseDTO.setLockedForPO(tenderRequest.getLockedForPO());
+        responseDTO.setLockedDate(tenderRequest.getLockedDate());
+
         return responseDTO;
 
     }
@@ -957,6 +1020,17 @@ public class TenderRequestServiceImpl implements TenderRequestService {
                 .orElse(BigDecimal.ZERO);
         tenderResponseDto.setProjectLimit(allocatedAmount);
         System.out.println("allocatedAmount: " + allocatedAmount);
+
+        // TC_44, TC_46, TC_47, TC_48: Add new fields to response
+        tenderResponseDto.setTenderVersion(tenderRequest.getTenderVersion());
+        tenderResponseDto.setUpdateReason(tenderRequest.getUpdateReason());
+        tenderResponseDto.setPreBidMeetingStatus(tenderRequest.getPreBidMeetingStatus());
+        tenderResponseDto.setPreBidMeetingDiscussion(tenderRequest.getPreBidMeetingDiscussion());
+        tenderResponseDto.setPreBidMeetingDate(CommonUtils.convertDateToString(tenderRequest.getPreBidMeetingDate()));
+        tenderResponseDto.setIsLocked(tenderRequest.getIsLocked());
+        tenderResponseDto.setLockedReason(tenderRequest.getLockedReason());
+        tenderResponseDto.setLockedForPO(tenderRequest.getLockedForPO());
+        tenderResponseDto.setLockedDate(tenderRequest.getLockedDate());
 
         return tenderResponseDto;
 

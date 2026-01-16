@@ -97,6 +97,10 @@ public class WorkflowServiceImpl implements WorkflowService {
     private PurchaseOrderRepository purchaseOrderRepository;
     @Autowired
     private ContigencyPurchaseRepository contigencyPurchaseRepository;
+
+    @Autowired
+    private BranchWorkflowService branchWorkflowService;
+
     @Autowired
     private ServiceOrderRepository serviceOrderRepository;
     @Autowired
@@ -264,50 +268,145 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Override
     @Transactional
     public WorkflowTransitionDto initiateWorkflow(String requestId, String workflowName, Integer createdBy) {
+        System.err.println("🚀🚀🚀 WORKFLOW INITIATION - RequestID: " + requestId + ", Workflow: " + workflowName);
         WorkflowTransitionDto workflowTransitionDto = null;
         if (Objects.nonNull(requestId) && Objects.nonNull(workflowName) && Objects.nonNull(createdBy)) {
             userService.validateUser(createdBy);
             WorkflowDto workflowDto = workflowByWorkflowName(workflowName);
-            TransitionDto transitionDto = transitionsByWorkflowIdAndOrder(workflowDto.getWorkflowId(), 1, 1);
-            if (Objects.isNull(transitionDto)) {
-                throw new InvalidInputException(new ErrorDetails(AppConstant.TRANSITION_NOT_FOUND, AppConstant.ERROR_TYPE_CODE_VALIDATION,
-                        AppConstant.ERROR_TYPE_VALIDATION, "Transition not found."));
-            }
+
             validateWorkflowTransition(requestId, createdBy, workflowDto.getWorkflowId());
 
-            WorkflowTransition workflowTransition = createWorkflowTransition(requestId, workflowDto, transitionDto, createdBy);
+            // ===== BRANCH-BASED WORKFLOW ROUTING =====
+            WorkflowTransition workflowTransition = initiateBranchBasedWorkflow(requestId, workflowDto, createdBy);
+
+            if (workflowTransition == null) {
+                // Fallback to old TransitionMaster system if no branch found
+                System.err.println("⚠️⚠️⚠️ NO BRANCH MATCHED - Falling back to old TransitionMaster system for " + requestId);
+                System.err.println("⚠️ Check: 1) Active branches exist, 2) Conditions match request data, 3) Data types match");
+                TransitionDto transitionDto = transitionsByWorkflowIdAndOrder(workflowDto.getWorkflowId(), 1, 1);
+                if (Objects.isNull(transitionDto)) {
+                    throw new InvalidInputException(new ErrorDetails(AppConstant.TRANSITION_NOT_FOUND, AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION, "Transition not found."));
+                }
+                workflowTransition = createWorkflowTransition(requestId, workflowDto, transitionDto, createdBy);
+            } else {
+                System.out.println("✅✅✅ BRANCH-BASED WORKFLOW - Branch ID: " + workflowTransition.getBranchId() +
+                                 ", Next: " + workflowTransition.getNextRole());
+            }
+
             workflowTransitionRepository.save(workflowTransition);
             workflowTransitionDto = mapWorkflowTransitionDto(workflowTransition);
+
             if (WorkflowName.TENDER_EVALUATOR.getValue().equalsIgnoreCase(workflowName)) {
                 workflowTransition.setModifiedBy(createdBy);
                 List<SubWorkflowTransitionDto> list=validateTenderWorkFlow(null, workflowTransition, null);
                 list.forEach(dto -> {
-                    // Send email for each dto
                     if (dto != null) {
                         try {
-                            emailService.sendSubWorkflowEmail(dto); // @Async method
+                            emailService.sendSubWorkflowEmail(dto);
                         } catch (Exception e) {
-                            // log.error("Failed to send transition email", e);
+                            // log error
                         }
                     }
-
                 });
             }
-
 
         } else {
             throw new InvalidInputException(new ErrorDetails(AppConstant.USER_INVALID_INPUT, AppConstant.ERROR_TYPE_CODE_VALIDATION,
                     AppConstant.ERROR_TYPE_VALIDATION, "Invalid input."));
-
         }
+
         if (workflowTransitionDto != null) {
             try {
-                emailService.sendWorkflowEmail(workflowTransitionDto); // @Async method
+                emailService.sendWorkflowEmail(workflowTransitionDto);
             } catch (Exception e) {
-                // log.error("Failed to send transition email", e);
+                // log error
             }
         }
         return workflowTransitionDto;
+    }
+
+    /**
+     * BRANCH-BASED WORKFLOW INITIATION
+     * Matches workflow branch based on conditions and routes to first approver
+     */
+    private WorkflowTransition initiateBranchBasedWorkflow(String requestId, WorkflowDto workflowDto, Integer createdBy) {
+        try {
+            System.out.println("🔍 Initiating workflow for " + requestId);
+            System.out.println("   WorkflowName: " + workflowDto.getWorkflowName());
+
+            // Build conditions based on workflow type
+            Map<String, Object> conditions = buildConditionsForWorkflow(workflowDto.getWorkflowName(), requestId);
+
+            System.out.println("📋 Conditions: " + conditions);
+
+            // Find matching branch
+            com.astro.entity.AdminPanel.WorkflowBranchMaster matchedBranch =
+                branchWorkflowService.findMatchingBranch(workflowDto.getWorkflowId(), conditions);
+
+            if (matchedBranch == null) {
+                System.out.println("⚠️ No matching branch found for " + workflowDto.getWorkflowName());
+                return null;
+            }
+
+            // Get first approver for this branch
+            com.astro.entity.AdminPanel.ApproverMaster firstApprover =
+                branchWorkflowService.getFirstApprover(matchedBranch.getBranchId());
+
+            if (firstApprover == null) {
+                System.out.println("⚠️ No approvers configured for branch " + matchedBranch.getBranchCode());
+                return null;
+            }
+
+            // Create workflow transition with branch info
+            WorkflowTransition transition = new WorkflowTransition();
+            transition.setRequestId(requestId);
+            transition.setWorkflowId(workflowDto.getWorkflowId());
+            transition.setWorkflowName(workflowDto.getWorkflowName());
+            transition.setCreatedBy(createdBy);
+            transition.setCreatedDate(new Date());
+            transition.setStatus(AppConstant.CREATED_TYPE);
+            transition.setAction(AppConstant.CREATED_TYPE);
+            transition.setCurrentRole("Indent Creator");
+            transition.setNextRole(firstApprover.getRoleName());
+            transition.setNextAction(AppConstant.PENDING_TYPE);
+            transition.setTransitionOrder(1);
+            transition.setTransitionSubOrder(1);
+            transition.setWorkflowSequence(1);
+
+            // Set branch-based fields
+            transition.setBranchId(matchedBranch.getBranchId());
+            transition.setApproverId(firstApprover.getApproverId());
+            transition.setApprovalLevel(firstApprover.getApprovalLevel());
+            transition.setApprovalSequence(firstApprover.getApprovalSequence());
+
+            System.out.println("✅ Workflow initiated with branch: " + matchedBranch.getBranchCode() +
+                             " (ID: " + matchedBranch.getBranchId() + ")" +
+                             ", First approver: " + firstApprover.getRoleName() +
+                             " (Level: " + firstApprover.getApprovalLevel() +
+                             ", Seq: " + firstApprover.getApprovalSequence() + ")");
+
+            return transition;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error in branch-based workflow initiation: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private Map<String, Object> buildConditionsForWorkflow(String workflowName, String requestId) {
+        String workflowNameUpper = workflowName.toUpperCase();
+        if (workflowNameUpper.contains("INDENT")) {
+            return branchWorkflowService.buildIndentConditions(requestId);
+        } else if (workflowNameUpper.contains("TENDER")) {
+            return branchWorkflowService.buildTenderConditions(requestId);
+        } else if (workflowNameUpper.contains("PURCHASE") || workflowNameUpper.contains("PO")) {
+            return branchWorkflowService.buildPOConditions(requestId);
+        } else if (workflowNameUpper.contains("CONTINGENCY")) {
+            return branchWorkflowService.buildPOConditions(requestId);
+        }
+        return new HashMap<>();
     }
 
     private void validateWorkflowTransition(String requestId, Integer createdBy, Integer workflowId) {
@@ -511,11 +610,16 @@ public class WorkflowServiceImpl implements WorkflowService {
         workflowTransitionDto.setWorkflowSequence(workflowTransition.getWorkflowSequence());
         workflowTransitionDto.setAction(workflowTransition.getAction());
         workflowTransitionDto.setRemarks(workflowTransition.getRemarks());
-        TransitionMaster transitionMaster = transitionById(workflowTransition.getTransitionId());
-        if (Objects.nonNull(transitionMaster)) {
-            workflowTransitionDto.setNextActionId(transitionMaster.getNextRoleId());
-            workflowTransitionDto.setNextActionRole(roleNameById(transitionMaster.getNextRoleId()));
+
+        // For branch-based workflows, transitionId is null
+        if (workflowTransition.getTransitionId() != null) {
+            TransitionMaster transitionMaster = transitionById(workflowTransition.getTransitionId());
+            if (Objects.nonNull(transitionMaster)) {
+                workflowTransitionDto.setNextActionId(transitionMaster.getNextRoleId());
+                workflowTransitionDto.setNextActionRole(roleNameById(transitionMaster.getNextRoleId()));
+            }
         }
+
         return workflowTransitionDto;
     }
 
@@ -568,16 +672,24 @@ public class WorkflowServiceImpl implements WorkflowService {
             throw new InvalidInputException(new ErrorDetails(AppConstant.INVALID_WORKFLOW_TRANSITION, AppConstant.ERROR_TYPE_CODE_VALIDATION,
                     AppConstant.ERROR_TYPE_VALIDATION, "Workflow transition not found.With given workflow transition id and request id."));
         }
-        TransitionMaster currentTransition = transitionMasterRepository.findById(workflowTransition.getTransitionId()).orElse(null);
 
-        if(workflowTransition.getWorkflowId() == 7 && workflowTransition.getCurrentRole().equalsIgnoreCase("Tender Evaluator") && workflowTransition.getNextRole().equalsIgnoreCase("Tender Evaluator")
-                || workflowTransition.getWorkflowId() == 1 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("Indent Creator")
-                || workflowTransition.getWorkflowId() == 3 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("PO Creator")
-                || workflowTransition.getWorkflowId() == 4 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("Tender Creator")
-        ){
-            validateUserRole(transitionActionReqDto.getActionBy(), currentTransition.getCurrentRoleId());
-        }else {
-            validateUserRole(transitionActionReqDto.getActionBy(), currentTransition.getNextRoleId());
+        // For branch-based workflows, transitionId is null
+        TransitionMaster currentTransition = null;
+        if (workflowTransition.getTransitionId() != null) {
+            currentTransition = transitionMasterRepository.findById(workflowTransition.getTransitionId()).orElse(null);
+        }
+
+        // Only validate user role for legacy (non-branch) workflows
+        if (currentTransition != null) {
+            if(workflowTransition.getWorkflowId() == 7 && workflowTransition.getCurrentRole().equalsIgnoreCase("Tender Evaluator") && workflowTransition.getNextRole().equalsIgnoreCase("Tender Evaluator")
+                    || workflowTransition.getWorkflowId() == 1 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("Indent Creator")
+                    || workflowTransition.getWorkflowId() == 3 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("PO Creator")
+                    || workflowTransition.getWorkflowId() == 4 && workflowTransition.getAction().equalsIgnoreCase("Change requested") && workflowTransition.getNextRole().equalsIgnoreCase("Tender Creator")
+            ){
+                validateUserRole(transitionActionReqDto.getActionBy(), currentTransition.getCurrentRoleId());
+            }else {
+                validateUserRole(transitionActionReqDto.getActionBy(), currentTransition.getNextRoleId());
+            }
         }
        /* if (AppConstant.COMPLETED_TYPE.equalsIgnoreCase(workflowTransition.getStatus())) {
             throw new BusinessException(new ErrorDetails(AppConstant.INVALID_ACTION, AppConstant.ERROR_TYPE_CODE_VALIDATION,
@@ -1044,6 +1156,90 @@ public class WorkflowServiceImpl implements WorkflowService {
 
    // private void approveTransition(WorkflowTransition currentWorkflowTransition, TransitionMaster currentTransition, TransitionActionReqDto transitionActionReqDto) {
     private WorkflowTransitionDto approveTransition(WorkflowTransition currentWorkflowTransition, TransitionMaster currentTransition, TransitionActionReqDto transitionActionReqDto) {
+        WorkflowTransition nextWorkflowTransition = null;
+
+        // ===== BRANCH-BASED APPROVAL ROUTING =====
+        if (currentWorkflowTransition.getBranchId() != null) {
+            // This is a branch-based workflow
+            nextWorkflowTransition = approveBranchBasedTransition(currentWorkflowTransition, transitionActionReqDto);
+        } else {
+            // Legacy TransitionMaster-based workflow
+            nextWorkflowTransition = approveLegacyTransition(currentWorkflowTransition, currentTransition, transitionActionReqDto);
+        }
+
+        return mapToWorkflowTransitionDto(nextWorkflowTransition);
+    }
+
+    /**
+     * BRANCH-BASED APPROVAL TRANSITION
+     * Routes to next approver in the sequential approval chain
+     */
+    private WorkflowTransition approveBranchBasedTransition(WorkflowTransition currentWorkflowTransition, TransitionActionReqDto transitionActionReqDto) {
+        // Mark current transition as completed
+        currentWorkflowTransition.setNextAction(AppConstant.COMPLETED_TYPE);
+        workflowTransitionRepository.save(currentWorkflowTransition);
+
+        System.out.println("🔍 Finding next approver for branch " + currentWorkflowTransition.getBranchId() +
+                         " after Level: " + currentWorkflowTransition.getApprovalLevel() +
+                         ", Seq: " + currentWorkflowTransition.getApprovalSequence());
+
+        // Get next approver from branch configuration
+        com.astro.entity.AdminPanel.ApproverMaster nextApprover = branchWorkflowService.getNextApprover(
+            currentWorkflowTransition.getBranchId(),
+            currentWorkflowTransition.getApprovalLevel(),
+            currentWorkflowTransition.getApprovalSequence()
+        );
+
+        // Create new workflow transition
+        WorkflowTransition nextWorkflowTransition = new WorkflowTransition();
+        nextWorkflowTransition.setWorkflowId(currentWorkflowTransition.getWorkflowId());
+        nextWorkflowTransition.setWorkflowName(currentWorkflowTransition.getWorkflowName());
+        nextWorkflowTransition.setRequestId(currentWorkflowTransition.getRequestId());
+        nextWorkflowTransition.setCreatedDate(currentWorkflowTransition.getCreatedDate());
+        nextWorkflowTransition.setCreatedBy(currentWorkflowTransition.getCreatedBy());
+        nextWorkflowTransition.setModifiedBy(transitionActionReqDto.getActionBy());
+        nextWorkflowTransition.setModificationDate(new Date());
+        nextWorkflowTransition.setAction(transitionActionReqDto.getAction());
+        nextWorkflowTransition.setRemarks(transitionActionReqDto.getRemarks());
+        nextWorkflowTransition.setCurrentRole(currentWorkflowTransition.getNextRole());
+        nextWorkflowTransition.setWorkflowSequence(currentWorkflowTransition.getWorkflowSequence() + 1);
+        nextWorkflowTransition.setBranchId(currentWorkflowTransition.getBranchId());
+        nextWorkflowTransition.setTransitionOrder(currentWorkflowTransition.getTransitionOrder() + 1);
+        nextWorkflowTransition.setTransitionSubOrder(1);
+
+        if (nextApprover != null) {
+            // More approvers in the chain
+            nextWorkflowTransition.setStatus(AppConstant.IN_PROGRESS_TYPE);
+            nextWorkflowTransition.setNextAction(AppConstant.PENDING_TYPE);
+            nextWorkflowTransition.setNextRole(nextApprover.getRoleName());
+            nextWorkflowTransition.setApproverId(nextApprover.getApproverId());
+            nextWorkflowTransition.setApprovalLevel(nextApprover.getApprovalLevel());
+            nextWorkflowTransition.setApprovalSequence(nextApprover.getApprovalSequence());
+
+            System.out.println("✅ Approved by " + currentWorkflowTransition.getNextRole() +
+                             " → Routing to " + nextApprover.getRoleName() +
+                             " (Branch: " + currentWorkflowTransition.getBranchId() +
+                             ", Level: " + nextApprover.getApprovalLevel() +
+                             ", Seq: " + nextApprover.getApprovalSequence() + ")");
+        } else {
+            // No more approvers - workflow complete
+            nextWorkflowTransition.setStatus(AppConstant.COMPLETED_TYPE);
+            nextWorkflowTransition.setNextAction(null);
+            nextWorkflowTransition.setNextRole(null);
+
+            System.out.println("✅ Final approval by " + currentWorkflowTransition.getNextRole() +
+                             " (Branch: " + currentWorkflowTransition.getBranchId() +
+                             ") - Workflow COMPLETED");
+        }
+
+        workflowTransitionRepository.save(nextWorkflowTransition);
+        return nextWorkflowTransition;
+    }
+
+    /**
+     * LEGACY TRANSITION-MASTER BASED APPROVAL (Fallback)
+     */
+    private WorkflowTransition approveLegacyTransition(WorkflowTransition currentWorkflowTransition, TransitionMaster currentTransition, TransitionActionReqDto transitionActionReqDto) {
         TransitionDto nextTransition = null;
         WorkflowTransition nextWorkflowTransition = null;
 
@@ -1070,7 +1266,6 @@ public class WorkflowServiceImpl implements WorkflowService {
 
             workflowTransitionRepository.save(nextWorkflowTransition);
         } else {
-          //  nextTransition = nextTransition(currentTransition.getWorkflowId(), currentWorkflowTransition.getWorkflowName(), roleNameByUserId(transitionActionReqDto.getActionBy()), currentWorkflowTransition.getRequestId());
             nextTransition = nextTransition(currentTransition.getWorkflowId(), currentWorkflowTransition.getWorkflowName(), transitionActionReqDto.getRoleName(), currentWorkflowTransition.getRequestId());
 
             if (Objects.isNull(nextTransition)) {
@@ -1140,7 +1335,7 @@ public class WorkflowServiceImpl implements WorkflowService {
             }
         }
 
-        return mapToWorkflowTransitionDto(nextWorkflowTransition);
+        return nextWorkflowTransition;
     }
 
     private WorkflowTransitionDto mapToWorkflowTransitionDto(WorkflowTransition nextWorkflowTransition) {

@@ -302,7 +302,9 @@ public class IndentCreationServiceImpl implements IndentCreationService {
 
         indentCreation.setTotalIntentValue(totalIndentPrice);
 
-        indentCreationRepository.save(indentCreation);
+        // Use saveAndFlush to immediately commit to database
+        // This is needed so that workflow initiation can find the indent
+        indentCreationRepository.saveAndFlush(indentCreation);
 
         // Save VendorNames for each Material (only for material indents)
         if ("material".equalsIgnoreCase(indentType)) {
@@ -876,15 +878,8 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
         response.setIndentType(indentType);
         response.setMaterialCategoryType(indentCreation.getMaterialCategoryType());
 
-        // Handle consigne location mapping
-        String consignesLocation;
-        if ("BNG".equalsIgnoreCase(indentCreation.getConsignesLocation())) {
-            consignesLocation = "Normal";
-        } else {
-            consignesLocation = "Computer";
-        }
-
-        response.setConsignesLocation(consignesLocation);
+        // Set consigne location directly from entity - DO NOT MODIFY
+        response.setConsignesLocation(indentCreation.getConsignesLocation());
 
         BigDecimal totalPriceOfAllMaterials = BigDecimal.ZERO;
 
@@ -1146,14 +1141,8 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
-        // Handle consignee location
-        String consignesLocation;
-        if ("BNG".equalsIgnoreCase(indentCreation.getConsignesLocation())) {
-            consignesLocation = "Normal";
-        } else {
-            consignesLocation = "Computer";
-        }
-        response.setConsignesLocation(consignesLocation);
+        // Set consigne location directly from entity - DO NOT MODIFY
+        response.setConsignesLocation(indentCreation.getConsignesLocation());
 
         // Handle employee department
         if ("Engineering".equals(indentCreation.getEmployeeDepartment())) {

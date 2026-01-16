@@ -32,4 +32,8 @@ public interface VendorMasterRepository extends JpaRepository<VendorMaster, Stri
     @Query("SELECT v FROM VendorMaster v WHERE v.statusOfVendorActiveOrDebar IS NULL OR LOWER(v.statusOfVendorActiveOrDebar) <> 'debar'")
     List<VendorMaster> findAllActiveVendors();
 
+    // TC_45 & TC_51: Find vendors who have submitted quotations for a tender
+    @Query("SELECT DISTINCT v FROM VendorMaster v JOIN VendorQuotationAgainstTender vq ON v.vendorId = vq.vendorId WHERE vq.tenderId = :tenderId")
+    List<VendorMaster> findVendorsByTenderId(@Param("tenderId") String tenderId);
+
 }
