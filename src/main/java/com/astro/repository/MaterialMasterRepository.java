@@ -23,21 +23,43 @@ public interface MaterialMasterRepository extends JpaRepository<MaterialMaster, 
             "OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
             "LIMIT 10", nativeQuery = true)
     List<Object[]> searchMaterialsForDropdown(@Param("keyword") String keyword);*/
-   @Query(value = "SELECT m.material_code, m.description, m.category " +
+   @Query(value = "SELECT m.material_code, m.description, m.category, m.sub_category, m.uom, m.unit_price, m.currency " +
            "FROM material_master m " +
-           "WHERE LOWER(m.material_code) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "WHERE (LOWER(m.material_code) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "   OR LOWER(m.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "   OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "UNION " +
-           "SELECT u.material_code, u.description, u.category " +
-           "FROM material_master_util u " +
-           "WHERE LOWER(u.material_code) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "   OR LOWER(u.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "   OR LOWER(u.category) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "LIMIT 10",
+           "   OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (m.status_of_material_active_or_deactive IS NULL " +
+           "   OR LOWER(TRIM(m.status_of_material_active_or_deactive)) <> 'deactive') " +
+           "ORDER BY m.created_date DESC " +
+           "LIMIT 20",
            nativeQuery = true)
    List<Object[]> searchMaterialsForDropdown(@Param("keyword") String keyword);
 
+   @Query(value = "SELECT m.material_code, m.description, m.category, m.sub_category, m.uom, m.unit_price, m.currency " +
+           "FROM material_master m " +
+           "WHERE (LOWER(m.material_code) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "   OR LOWER(m.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "   OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (m.status_of_material_active_or_deactive IS NULL " +
+           "   OR LOWER(TRIM(m.status_of_material_active_or_deactive)) <> 'deactive') " +
+           "AND LOWER(m.sub_category) LIKE '%computer%' " +
+           "ORDER BY m.created_date DESC " +
+           "LIMIT 20",
+           nativeQuery = true)
+   List<Object[]> searchApprovedMaterialsComputer(@Param("keyword") String keyword);
+
+   @Query(value = "SELECT m.material_code, m.description, m.category, m.sub_category, m.uom, m.unit_price, m.currency " +
+           "FROM material_master m " +
+           "WHERE (LOWER(m.material_code) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "   OR LOWER(m.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "   OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (m.status_of_material_active_or_deactive IS NULL " +
+           "   OR LOWER(TRIM(m.status_of_material_active_or_deactive)) <> 'deactive') " +
+           "AND LOWER(m.sub_category) NOT LIKE '%computer%' " +
+           "ORDER BY m.created_date DESC " +
+           "LIMIT 20",
+           nativeQuery = true)
+   List<Object[]> searchApprovedMaterialsNonComputer(@Param("keyword") String keyword);
 
     Optional<MaterialMaster> findById(String materialCode);
 

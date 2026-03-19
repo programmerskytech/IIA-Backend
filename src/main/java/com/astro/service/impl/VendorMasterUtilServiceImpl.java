@@ -16,6 +16,8 @@ import com.astro.util.EmailService;
 import com.astro.util.PasswordGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.mail.MessagingException;
 import javax.transaction.Transactional;
@@ -87,31 +89,37 @@ public class VendorMasterUtilServiceImpl implements VendorMasterUtilService {
         VendorMasterUtil vm = vendorMasterUtilRepository.save(vendor);
 
         String password = PasswordGenerator.generateRandomPassword();
-        try {
-    emailService.sendEmail(vm.getEmailAddress(), vm.getVendorId(), password, vm);
 
-    VendorLoginDetails vendorLoginDetails = new VendorLoginDetails();
-    vendorLoginDetails.setVendorId(vm.getVendorId());
-    vendorLoginDetails.setEmailAddress(vm.getEmailAddress());
-    vendorLoginDetails.setPassword(password);
-    vendorLoginDetails.setEmailSent(true);
-    vendorLoginDetails.setIsFirstLogin(true);      // NEW: Set to true for first login
-    vendorLoginDetails.setIsTempPassword(true);    // NEW: Mark as temporary password
-    vendorLoginDetails.setPasswordChangedAt(null); // NEW: No password change yet
-    vendorLoginDetailsRepository.save(vendorLoginDetails);
-} catch (MessagingException e) {
-    String errorMessage = "Failed to send email to vendor: " + vm.getEmailAddress();
-    VendorLoginDetails vendorLoginDetails = new VendorLoginDetails();
-    vendorLoginDetails.setVendorId(vm.getVendorId());
-    vendorLoginDetails.setEmailAddress(vm.getEmailAddress());
-    vendorLoginDetails.setPassword(password);
-    vendorLoginDetails.setEmailSent(false);
-    vendorLoginDetails.setIsFirstLogin(true);      // NEW: Set to true for first login
-    vendorLoginDetails.setIsTempPassword(true);    // NEW: Mark as temporary password
-    vendorLoginDetails.setPasswordChangedAt(null); // NEW: No password change yet
-    vendorLoginDetailsRepository.save(vendorLoginDetails);
-    throw new EmailNotSentException(errorMessage);
-}
+        // Save login details FIRST within the transaction - before sending email
+        VendorLoginDetails vendorLoginDetails = new VendorLoginDetails();
+        vendorLoginDetails.setVendorId(vm.getVendorId());
+        vendorLoginDetails.setEmailAddress(vm.getEmailAddress());
+        vendorLoginDetails.setPassword(password);
+        vendorLoginDetails.setEmailSent(true); // optimistic: email will be sent after commit
+        vendorLoginDetails.setIsFirstLogin(true);
+        vendorLoginDetails.setIsTempPassword(true);
+        vendorLoginDetails.setPasswordChangedAt(null);
+        vendorLoginDetailsRepository.save(vendorLoginDetails);
+
+        // Send email ONLY AFTER the transaction commits - prevents sending email if DB save fails
+        final String finalPassword = password;
+        final VendorMasterUtil finalVm = vm;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    emailService.sendEmail(finalVm.getEmailAddress(), finalVm.getVendorId(), finalPassword, finalVm);
+                } catch (MessagingException e) {
+                    // Email failed - mark as not sent in a new transaction
+                    System.err.println("Failed to send registration email for vendor " + finalVm.getVendorId() + ": " + e.getMessage());
+                    vendorLoginDetailsRepository.findByVendorId(finalVm.getVendorId()).ifPresent(vl -> {
+                        vl.setEmailSent(false);
+                        vendorLoginDetailsRepository.save(vl);
+                    });
+                }
+            }
+        });
+
         return mapToRigisterResponse(vendor);
     }
 

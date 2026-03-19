@@ -1,11 +1,24 @@
 package com.astro.service.impl;
 
+import com.astro.dto.workflow.EscalationCheckResultDTO;
 import com.astro.dto.workflow.ProcurementDtos.IndentDto.IndentCreationResponseDTO;
 import com.astro.dto.workflow.ProcurementDtos.TenderWithIndentResponseDTO;
 import com.astro.entity.AdminPanel.ApproverMaster;
+import com.astro.entity.AdminPanel.DepartmentApproverMapping;
+import com.astro.entity.AdminPanel.FieldStationApproverMaster;
 import com.astro.entity.AdminPanel.WorkflowBranchMaster;
+import com.astro.entity.ProcurementModule.IndentCreation; // added by abhinav
+import com.astro.entity.ProcurementModule.IndentId; // added by abhinav
+import com.astro.entity.ProcurementModule.PurchaseOrder; // added by abhinav
+import com.astro.entity.ProcurementModule.TenderRequest; // added by abhinav
+import com.astro.entity.ProjectMaster;
 import com.astro.repository.AdminPanel.ApproverMasterRepository;
+import com.astro.repository.AdminPanel.DepartmentApproverMappingRepository;
+import com.astro.repository.AdminPanel.FieldStationApproverMasterRepository;
 import com.astro.repository.AdminPanel.WorkflowBranchMasterRepository;
+import com.astro.repository.ProcurementModule.TenderRequestRepository;
+import com.astro.repository.ProjectMasterRepository;
+import com.astro.service.AdminPanel.ApprovalLimitService;
 import com.astro.service.BranchWorkflowService;
 import com.astro.service.IndentCreationService;
 import com.astro.service.TenderRequestService;
@@ -32,9 +45,28 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
 
     @Autowired
     private TenderRequestService tenderService;
+    // added by abhinav
+    @Autowired
+    private TenderRequestRepository tenderRepository;
 
     @Autowired
     private com.astro.repository.ProcurementModule.IndentCreation.IndentCreationRepository indentRepository;
+
+    @Autowired
+    private ProjectMasterRepository projectMasterRepository;
+
+    @Autowired
+    private DepartmentApproverMappingRepository departmentApproverMappingRepository;
+
+    @Autowired
+    private FieldStationApproverMasterRepository fieldStationApproverMasterRepository;
+
+    @Autowired
+    private ApprovalLimitService approvalLimitService;
+
+    // added by abhinav for brach conditions that require PO details
+    @Autowired
+    private com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderRepository purchaseOrderRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -91,6 +123,38 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
                          " (Level: " + firstApprover.getApprovalLevel() +
                          ", Seq: " + firstApprover.getApprovalSequence() + ")");
         return firstApprover;
+    }
+
+    @Override
+    public ApproverMaster getFirstApproverForDepartment(Long branchId, String departmentName, BigDecimal indentValue) {
+        List<ApproverMaster> allApprovers = getApproversForBranch(branchId);
+
+        // If no approvers have DEPARTMENT_BASED condition, fall back to normal first approver
+        boolean hasDeptBased = allApprovers.stream()
+                .anyMatch(a -> "DEPARTMENT_BASED".equalsIgnoreCase(a.getConditionCheckType()));
+
+        if (!hasDeptBased || departmentName == null || departmentName.trim().isEmpty()) {
+            return getFirstApprover(branchId);
+        }
+
+        Map<String, Object> conditions = new HashMap<>();
+        conditions.put("indentorDepartment", departmentName);
+        conditions.put("totalAmount", indentValue);
+
+        // Walk through all approvers in order and return the first one that should NOT be skipped
+        for (ApproverMaster approver : allApprovers) {
+            if (!shouldSkipApprover(approver, conditions)) {
+                System.out.println("✅ Department-aware first approver: " + approver.getRoleName()
+                        + " for dept '" + departmentName + "'"
+                        + " (Level: " + approver.getApprovalLevel()
+                        + ", Seq: " + approver.getApprovalSequence() + ")");
+                return approver;
+            }
+        }
+
+        System.out.println("⚠️ No department-matching approver found for dept '" + departmentName
+                + "' in branch " + branchId);
+        return null;
     }
 
     @Override
@@ -160,9 +224,16 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
                 }
             }
 
-            // Check category if specified
+            // Check category if specified (supports both "category" and "materialCategory" keys)
             if (branchConditions.containsKey("category")) {
-                if (!matchesCategory(branchConditions, conditions)) {
+                if (!matchesCategory(branchConditions, conditions, "category")) {
+                    return false;
+                }
+            }
+
+            // Check materialCategory if specified
+            if (branchConditions.containsKey("materialCategory")) {
+                if (!matchesCategory(branchConditions, conditions, "materialCategory")) {
                     return false;
                 }
             }
@@ -177,6 +248,44 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
             // Check project if specified
             if (branchConditions.containsKey("projectName")) {
                 if (!matchesProject(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+
+            // Check isUnderProject / projectBased if specified (both keys are supported)
+            if (branchConditions.containsKey("isUnderProject")) {
+                if (!matchesIsUnderProject(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+            if (branchConditions.containsKey("projectBased")) {
+                if (!matchesProjectBased(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+            if (branchConditions.containsKey("isProject")) {
+                if (!matchesIsProject(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+
+            // Check budget availability if specified
+            if (branchConditions.containsKey("budgetCheck")) {
+                if (!matchesBudgetCheck(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+
+            // Check mode of procurement if specified
+            if (branchConditions.containsKey("modeOfProcurement")) {
+                if (!matchesModeOfProcurement(branchConditions, conditions)) {
+                    return false;
+                }
+            }
+
+            // Check indentorDepartment if specified (used to restrict a branch to a specific dept)
+            if (branchConditions.containsKey("indentorDepartment")) {
+                if (!matchesIndentorDepartment(branchConditions, conditions)) {
                     return false;
                 }
             }
@@ -225,17 +334,28 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
         return true;
     }
 
-    private boolean matchesCategory(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
-        String branchCategory = String.valueOf(branchConditions.get("category"));
-        String actualCategory = String.valueOf(actualConditions.get("category"));
+    private boolean matchesCategory(Map<String, Object> branchConditions, Map<String, Object> actualConditions, String conditionKey) {
+        String branchCategory = String.valueOf(branchConditions.get(conditionKey));
+        // For materialCategory, we look for it in actual conditions as well
+        String actualCategory = String.valueOf(actualConditions.get(conditionKey));
+
+        // Also try to get from "category" key if materialCategory is not directly in actual conditions
+        if ((actualCategory == null || "null".equals(actualCategory)) && "materialCategory".equals(conditionKey)) {
+            actualCategory = String.valueOf(actualConditions.get("category"));
+        }
 
         if (actualCategory == null || "null".equals(actualCategory)) {
+            System.out.println("   ❌ Category: actualCategory is null for key: " + conditionKey);
             return false;
         }
 
-        boolean matches = branchCategory.equalsIgnoreCase(actualCategory);
-        System.out.println("   " + (matches ? "✅" : "❌") + " Category: " + actualCategory +
-                         " vs " + branchCategory);
+        // Normalize the values for comparison (handle NON_COMPUTER vs non-computer)
+        String normalizedBranch = branchCategory.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+        String normalizedActual = actualCategory.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+
+        boolean matches = normalizedBranch.equals(normalizedActual);
+        System.out.println("   " + (matches ? "✅" : "❌") + " Category (" + conditionKey + "): '" + actualCategory +
+                         "' vs '" + branchCategory + "'");
         return matches;
     }
 
@@ -248,10 +368,35 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
             return false;
         }
 
-        // Trim and compare
-        boolean matches = branchLocation.trim().equalsIgnoreCase(actualLocation.trim());
-        System.out.println("   " + (matches ? "✅" : "❌") + " Location: '" + actualLocation.trim() +
-                         "' vs '" + branchLocation.trim() + "'");
+        String normalizedBranchLocation = branchLocation.trim().toUpperCase();
+        String normalizedActualLocation = actualLocation.trim().toUpperCase();
+
+        boolean matches;
+
+        // Handle special location patterns like NON_BANGALORE, NON-BANGALORE
+        if (normalizedBranchLocation.startsWith("NON_") || normalizedBranchLocation.startsWith("NON-")) {
+            // Extract the location to exclude (e.g., "NON_BANGALORE" -> "BANGALORE")
+            String excludedLocation = normalizedBranchLocation.replace("NON_", "").replace("NON-", "");
+
+            // Check if actual location is NOT the excluded location
+            // Also check common abbreviations (BLR for BANGALORE)
+            boolean isExcludedLocation = normalizedActualLocation.equalsIgnoreCase(excludedLocation) ||
+                                          (excludedLocation.equals("BANGALORE") && normalizedActualLocation.equals("BLR")) ||
+                                          (excludedLocation.equals("BLR") && normalizedActualLocation.equals("BANGALORE"));
+
+            matches = !isExcludedLocation;
+            System.out.println("   " + (matches ? "✅" : "❌") + " Location: '" + actualLocation.trim() +
+                             "' is " + (matches ? "NOT " : "") + excludedLocation + " (branch requires: " + branchLocation + ")");
+        } else {
+            // Direct location match
+            matches = normalizedBranchLocation.equals(normalizedActualLocation) ||
+                      // Handle abbreviation matching
+                      (normalizedBranchLocation.equals("BANGALORE") && normalizedActualLocation.equals("BLR")) ||
+                      (normalizedBranchLocation.equals("BLR") && normalizedActualLocation.equals("BANGALORE"));
+            System.out.println("   " + (matches ? "✅" : "❌") + " Location: '" + actualLocation.trim() +
+                             "' vs '" + branchLocation.trim() + "'");
+        }
+
         return matches;
     }
 
@@ -308,14 +453,56 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
 
             conditions.put("totalAmount", indent.getTotalIntentValue());
             conditions.put("category", indent.getMaterialCategoryType());
+            // Also put materialCategory as alias (frontend branch config may use either key)
+            conditions.put("materialCategory", indent.getMaterialCategoryType());
             conditions.put("location", indent.getConsignesLocation());
             conditions.put("projectName", indent.getProjectName());
+
+            // Derive isUnderProject: if explicitly set to true use that,
+            // otherwise infer from projectName (handles default=false and null cases)
+            Boolean isUnderProject = indent.getIsUnderProject();
+            boolean hasProjectName = indent.getProjectName() != null && !indent.getProjectName().trim().isEmpty();
+            if (isUnderProject == null || (!isUnderProject && hasProjectName)) {
+                // If isUnderProject is null/false but a project name exists, the indent IS project-based
+                isUnderProject = hasProjectName;
+            }
+            conditions.put("isUnderProject", isUnderProject);
+            conditions.put("projectCode", indent.getProjectCode());
+            conditions.put("indentorDepartment", indent.getIndentorDepartment());
+
+            // Mode of Procurement: check indent-level field first, then fall back to first material detail
+            String mop = indent.getModeOfProcurement();
+            if (mop == null || mop.trim().isEmpty()) {
+                try {
+                    if (indent.getMaterialDetails() != null && !indent.getMaterialDetails().isEmpty()) {
+                        mop = indent.getMaterialDetails().get(0).getModeOfProcurement();
+                        System.out.println("   ℹ️ ModeOfProcurement from material detail: " + mop);
+                    }
+                } catch (Exception ex) {
+                    System.err.println("   ⚠️ Could not load materialDetails for MOP: " + ex.getMessage());
+                }
+            }
+            conditions.put("modeOfProcurement", mop);
+
+            // Check project budget availability if under project
+            if (Boolean.TRUE.equals(indent.getIsUnderProject()) && indent.getProjectCode() != null) {
+                BigDecimal availableLimit = getAvailableProjectLimit(indent.getProjectCode());
+                conditions.put("availableProjectLimit", availableLimit);
+                boolean budgetAvailable = availableLimit != null &&
+                        indent.getTotalIntentValue() != null &&
+                        availableLimit.compareTo(indent.getTotalIntentValue()) >= 0;
+                conditions.put("projectBudgetAvailable", budgetAvailable);
+            }
 
             System.out.println("📋 Indent Conditions Built for " + requestId + ": " + conditions);
             System.out.println("   Total Amount: " + indent.getTotalIntentValue());
             System.out.println("   Category: " + indent.getMaterialCategoryType());
             System.out.println("   Location: " + indent.getConsignesLocation());
             System.out.println("   Project: " + indent.getProjectName());
+            System.out.println("   Is Under Project (raw): " + indent.getIsUnderProject() + " → derived: " + isUnderProject);
+            System.out.println("   Project Code: " + indent.getProjectCode());
+            System.out.println("   Department: " + indent.getIndentorDepartment());
+            System.out.println("   Mode of Procurement (raw): " + indent.getModeOfProcurement() + " → derived: " + mop);
 
         } catch (Exception e) {
             System.err.println("❌ Error building indent conditions for " + requestId + ": " + e.getMessage());
@@ -352,14 +539,472 @@ public class BranchWorkflowServiceImpl implements BranchWorkflowService {
         return conditions;
     }
 
+    // @Override
+    // public Map<String, Object> buildPOConditions(String requestId) {
+    //     Map<String, Object> conditions = new HashMap<>();
+    //     // PO conditions will be based on tender/indent data
+    //     // This can be implemented when PO workflow uses branches
+    //     System.out.println("📋 PO Conditions Built: " + conditions);
+    //     return conditions;
+    // }
+    // updated buildPOConditions to include actual conditions based on linked tender and indent
     @Override
     public Map<String, Object> buildPOConditions(String requestId) {
+
         Map<String, Object> conditions = new HashMap<>();
 
-        // PO conditions will be based on tender/indent data
-        // This can be implemented when PO workflow uses branches
-        System.out.println("📋 PO Conditions Built: " + conditions);
+        try {
+            // added by abhinav
+            PurchaseOrder po = purchaseOrderRepository.findById(requestId).orElse(null);
+
+            if (po == null) {
+                System.err.println("❌ PO not found: " + requestId);
+                return conditions;
+            }
+
+            conditions.put("totalAmount", po.getTotalValueOfPo());
+            conditions.put("projectName", po.getProjectName());
+            conditions.put("location", po.getConsignesAddress());
+
+            // Mode of Procurement from Tender
+            if (po.getTenderId() != null) {
+                String mop = tenderRepository.findModeOfProcurementByTenderId(po.getTenderId());
+                conditions.put("modeOfProcurement", mop);
+            }
+
+            System.out.println("📋 PO Conditions Built: " + conditions);
+
+        } catch (Exception e) {
+            System.err.println("❌ Error building PO conditions: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         return conditions;
+    }
+
+    // ==================== NEW DYNAMIC WORKFLOW METHODS ====================
+
+    @Override
+    public ApproverMaster getNextApproverWithLimitCheck(
+            Long branchId,
+            Integer currentLevel,
+            Integer currentSequence,
+            BigDecimal indentValue,
+            String departmentName,
+            String category,
+            String location
+    ) {
+        // Get the basic next approver
+        ApproverMaster nextApprover = getNextApprover(branchId, currentLevel, currentSequence);
+
+        if (nextApprover == null) {
+            return null; // Workflow complete
+        }
+
+        // Build conditions for checking skip/escalate
+        Map<String, Object> conditions = new HashMap<>();
+        conditions.put("totalAmount", indentValue);
+        conditions.put("indentorDepartment", departmentName);
+        conditions.put("category", category);
+        conditions.put("location", location);
+
+        // Check if this approver should be skipped
+        while (nextApprover != null && shouldSkipApprover(nextApprover, conditions)) {
+            System.out.println("⏩ Skipping approver: " + nextApprover.getRoleName());
+            nextApprover = getNextApprover(branchId, nextApprover.getApprovalLevel(), nextApprover.getApprovalSequence());
+        }
+
+        return nextApprover;
+    }
+
+    @Override
+    public EscalationCheckResultDTO checkEscalationRequired(
+            String roleName,
+            BigDecimal indentValue,
+            String category,
+            String departmentName,
+            String location
+    ) {
+        return approvalLimitService.checkEscalation(roleName, category, departmentName, location, indentValue);
+    }
+
+    @Override
+    public DepartmentApproverMapping getDepartmentApprover(String departmentName, BigDecimal indentValue) {
+        if (departmentName == null || departmentName.trim().isEmpty()) {
+            System.out.println("⚠️ Department name is null or empty");
+            return null;
+        }
+
+        List<DepartmentApproverMapping> approvers = departmentApproverMappingRepository
+                .findByDepartmentNameAndIsActiveTrue(departmentName);
+
+        if (approvers.isEmpty()) {
+            System.out.println("⚠️ No approvers configured for department: " + departmentName);
+            return null;
+        }
+
+        // Find Head SEG first (lower limit = ₹1,00,000)
+        Optional<DepartmentApproverMapping> headSEG = approvers.stream()
+                .filter(a -> "HEAD_SEG".equalsIgnoreCase(a.getApproverType()))
+                .findFirst();
+
+        // Find Dean (higher limit = ₹1,50,000)
+        Optional<DepartmentApproverMapping> dean = approvers.stream()
+                .filter(a -> "DEAN".equalsIgnoreCase(a.getApproverType()))
+                .findFirst();
+
+        // Decision logic based on amount
+        if (headSEG.isPresent() && !headSEG.get().exceedsLimit(indentValue)) {
+            System.out.println("✅ Routing to Head SEG for department: " + departmentName);
+            return headSEG.get();
+        } else if (dean.isPresent()) {
+            System.out.println("✅ Routing to Dean for department: " + departmentName);
+            return dean.get();
+        } else if (headSEG.isPresent()) {
+            return headSEG.get();
+        }
+
+        return null;
+    }
+
+    @Override
+    public FieldStationApproverMaster getFieldStationApprover(String location) {
+        if (location == null || location.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalizedLocation = location.trim().toUpperCase();
+
+        // Bangalore doesn't need field station in-charge
+        if ("BANGALORE".equals(normalizedLocation) || "BLR".equals(normalizedLocation)) {
+            System.out.println("📍 Location is Bangalore - no field station in-charge needed");
+            return null;
+        }
+
+        return fieldStationApproverMasterRepository.findByFieldStationNameIgnoreCase(location)
+                .orElseGet(() -> {
+                    System.out.println("⚠️ No field station in-charge found for: " + location);
+                    return null;
+                });
+    }
+
+    @Override
+    public boolean checkProjectBudgetAvailable(String projectCode, BigDecimal indentValue) {
+        if (projectCode == null || indentValue == null) {
+            return false;
+        }
+
+        BigDecimal availableLimit = getAvailableProjectLimit(projectCode);
+        if (availableLimit == null) {
+            return false;
+        }
+
+        boolean available = availableLimit.compareTo(indentValue) >= 0;
+        System.out.println("💰 Project Budget Check: " + projectCode +
+                " - Available: ₹" + availableLimit +
+                ", Required: ₹" + indentValue +
+                ", Result: " + (available ? "AVAILABLE" : "INSUFFICIENT"));
+        return available;
+    }
+
+    @Override
+    public BigDecimal getAvailableProjectLimit(String projectCode) {
+        if (projectCode == null) {
+            return null;
+        }
+
+        return projectMasterRepository.findById(projectCode)
+                .map(ProjectMaster::getAvailableProjectLimit)
+                .orElse(null);
+    }
+
+    @Override
+    public boolean shouldSkipApprover(ApproverMaster approver, Map<String, Object> conditions) {
+        // DEPARTMENT_BASED: skip this approver if its role doesn't handle the indentor's department
+        if ("DEPARTMENT_BASED".equalsIgnoreCase(approver.getConditionCheckType())) {
+            return shouldSkipDepartmentBasedApprover(approver, conditions);
+        }
+
+        if (approver.getSkipIfCondition() == null || approver.getSkipIfCondition().trim().isEmpty()) {
+            return false;
+        }
+
+        try {
+            Map<String, Object> skipConfig = objectMapper.readValue(
+                    approver.getSkipIfCondition(),
+                    new TypeReference<Map<String, Object>>() {}
+            );
+
+            String field = String.valueOf(skipConfig.get("field"));
+            String operator = String.valueOf(skipConfig.get("operator"));
+            Object conditionValue = skipConfig.get("value");
+
+            Object actualValue = conditions.get(field);
+            if (actualValue == null) {
+                return false;
+            }
+
+            // Compare based on operator
+            if ("totalAmount".equals(field) || field.contains("Amount") || field.contains("amount")) {
+                BigDecimal actual = convertToBigDecimal(actualValue);
+                BigDecimal threshold = convertToBigDecimal(conditionValue);
+
+                if (actual == null || threshold == null) {
+                    return false;
+                }
+
+                return switch (operator.toUpperCase()) {
+                    case "LT" -> actual.compareTo(threshold) < 0;
+                    case "LTE" -> actual.compareTo(threshold) <= 0;
+                    case "GT" -> actual.compareTo(threshold) > 0;
+                    case "GTE" -> actual.compareTo(threshold) >= 0;
+                    case "EQ" -> actual.compareTo(threshold) == 0;
+                    default -> false;
+                };
+            }
+
+            return false;
+        } catch (Exception e) {
+            System.err.println("❌ Error checking skip condition: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if this DEPARTMENT_BASED approver should be skipped
+     * because the indentor's department is not mapped to this approver's role type.
+     */
+    private boolean shouldSkipDepartmentBasedApprover(ApproverMaster approver, Map<String, Object> conditions) {
+        String department = (String) conditions.get("indentorDepartment");
+        if (department == null || department.trim().isEmpty()) {
+            System.out.println("⚠️ No indentorDepartment in conditions – not skipping " + approver.getRoleName());
+            return false;
+        }
+
+        String approverType = deriveApproverType(approver.getRoleName());
+        if (approverType.isEmpty()) {
+            System.out.println("⚠️ Cannot derive approver type from role '" + approver.getRoleName() + "' – not skipping");
+            return false;
+        }
+
+        // All departments that are mapped to this approver type (e.g. DEAN or HEAD_SEG)
+        List<String> handledDepartments = departmentApproverMappingRepository
+                .findDepartmentsWithApproverType(approverType);
+
+        // If no departments are configured for this approver type yet, don't skip —
+        // treat it as "applies to all departments" (safe fallback so mandatory
+        // approvers are never accidentally dropped from the chain).
+        if (handledDepartments.isEmpty()) {
+            System.out.println("⚠️ No department mappings configured for type '" + approverType
+                    + "' – keeping " + approver.getRoleName() + " (applies to all depts by default)");
+            return false;
+        }
+
+        boolean handles = handledDepartments.stream()
+                .anyMatch(d -> d.trim().equalsIgnoreCase(department.trim()));
+
+        if (handles) {
+            System.out.println("✅ " + approver.getRoleName() + " handles dept '" + department + "' – keeping");
+            return false;
+        } else {
+            System.out.println("⏩ Skipping " + approver.getRoleName() + " – dept '" + department + "' not mapped to " + approverType);
+            return true;
+        }
+    }
+
+    /** Derives DEAN or HEAD_SEG from a role name (case-insensitive). */
+    private String deriveApproverType(String roleName) {
+        if (roleName == null) return "";
+        String upper = roleName.trim().toUpperCase();
+        if (upper.contains("DEAN")) return "DEAN";
+        if (upper.contains("HEAD") && upper.contains("SEG")) return "HEAD_SEG";
+        return "";
+    }
+
+    @Override
+    public EscalationCheckResultDTO checkApproverEscalation(ApproverMaster approver, Map<String, Object> conditions) {
+        if (approver.getEscalateIfCondition() == null || approver.getEscalateIfCondition().trim().isEmpty()) {
+            return EscalationCheckResultDTO.noEscalation();
+        }
+
+        try {
+            Map<String, Object> escalateConfig = objectMapper.readValue(
+                    approver.getEscalateIfCondition(),
+                    new TypeReference<Map<String, Object>>() {}
+            );
+
+            String field = String.valueOf(escalateConfig.get("field"));
+            String operator = String.valueOf(escalateConfig.get("operator"));
+
+            Object actualValue = conditions.get(field);
+            if (actualValue == null) {
+                return EscalationCheckResultDTO.noEscalation();
+            }
+
+            BigDecimal actual = convertToBigDecimal(actualValue);
+            if (actual == null) {
+                return EscalationCheckResultDTO.noEscalation();
+            }
+
+            // Get limit to compare against
+            BigDecimal limit = null;
+            if (escalateConfig.containsKey("value")) {
+                limit = convertToBigDecimal(escalateConfig.get("value"));
+            } else if (escalateConfig.containsKey("limitField")) {
+                // Get limit from another field (e.g., approvalLimit)
+                String limitField = String.valueOf(escalateConfig.get("limitField"));
+                limit = convertToBigDecimal(conditions.get(limitField));
+            }
+
+            if (limit == null) {
+                return EscalationCheckResultDTO.noEscalation();
+            }
+
+            boolean shouldEscalate = switch (operator.toUpperCase()) {
+                case "GT" -> actual.compareTo(limit) > 0;
+                case "GTE" -> actual.compareTo(limit) >= 0;
+                case "LT" -> actual.compareTo(limit) < 0;
+                case "LTE" -> actual.compareTo(limit) <= 0;
+                default -> false;
+            };
+
+            if (shouldEscalate) {
+                String reason = String.format("Amount ₹%s exceeds %s's limit of ₹%s",
+                        actual, approver.getRoleName(), limit);
+                return EscalationCheckResultDTO.escalateTo("Director", reason, actual, limit);
+            }
+
+            return EscalationCheckResultDTO.noEscalation();
+
+        } catch (Exception e) {
+            System.err.println("❌ Error checking escalation condition: " + e.getMessage());
+            return EscalationCheckResultDTO.noEscalation();
+        }
+    }
+
+    // Enhanced branch matching that supports isUnderProject, projectBased, isProject and budget checks
+    private boolean matchesIsUnderProject(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        if (!branchConditions.containsKey("isUnderProject")) {
+            return true;
+        }
+
+        Boolean branchRequiresUnderProject = toBoolean(branchConditions.get("isUnderProject"));
+        Boolean actualIsUnderProject = toBoolean(actualConditions.get("isUnderProject"));
+
+        if (actualIsUnderProject == null) {
+            actualIsUnderProject = false;
+        }
+
+        boolean matches = branchRequiresUnderProject.equals(actualIsUnderProject);
+        System.out.println("   " + (matches ? "✅" : "❌") + " isUnderProject: " +
+                actualIsUnderProject + " vs required: " + branchRequiresUnderProject);
+        return matches;
+    }
+
+    // Matches "projectBased" key (alias used by frontend for isUnderProject)
+    private boolean matchesProjectBased(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        Boolean branchRequiresProject = toBoolean(branchConditions.get("projectBased"));
+        Boolean actualIsUnderProject = toBoolean(actualConditions.get("isUnderProject"));
+
+        if (actualIsUnderProject == null) {
+            actualIsUnderProject = false;
+        }
+
+        boolean matches = branchRequiresProject.equals(actualIsUnderProject);
+        System.out.println("   " + (matches ? "✅" : "❌") + " projectBased: " +
+                actualIsUnderProject + " vs required: " + branchRequiresProject);
+        return matches;
+    }
+
+    // Matches "isProject" key (another alias)
+    private boolean matchesIsProject(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        Boolean branchRequiresProject = toBoolean(branchConditions.get("isProject"));
+        Boolean actualIsUnderProject = toBoolean(actualConditions.get("isUnderProject"));
+
+        if (actualIsUnderProject == null) {
+            actualIsUnderProject = false;
+        }
+
+        boolean matches = branchRequiresProject.equals(actualIsUnderProject);
+        System.out.println("   " + (matches ? "✅" : "❌") + " isProject: " +
+                actualIsUnderProject + " vs required: " + branchRequiresProject);
+        return matches;
+    }
+
+    // Safe Boolean conversion - handles Boolean, String "true"/"false", and Integer 0/1
+    private Boolean toBoolean(Object value) {
+        if (value == null) return null;
+        if (value instanceof Boolean) return (Boolean) value;
+        if (value instanceof String) return Boolean.parseBoolean((String) value);
+        if (value instanceof Number) return ((Number) value).intValue() != 0;
+        return null;
+    }
+
+    private boolean matchesBudgetCheck(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        if (!branchConditions.containsKey("budgetCheck")) {
+            return true;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> budgetCheck = (Map<String, Object>) branchConditions.get("budgetCheck");
+        if (budgetCheck == null) {
+            return true;
+        }
+
+        String operator = String.valueOf(budgetCheck.get("operator"));
+
+        // Get available budget from conditions
+        Boolean budgetAvailable = (Boolean) actualConditions.get("projectBudgetAvailable");
+        if (budgetAvailable == null) {
+            return false;
+        }
+
+        // GTE means budget should be available (available >= required)
+        // LT means budget should not be available (available < required)
+        boolean matches;
+        if ("GTE".equalsIgnoreCase(operator)) {
+            matches = budgetAvailable;
+        } else if ("LT".equalsIgnoreCase(operator)) {
+            matches = !budgetAvailable;
+        } else {
+            matches = true;
+        }
+
+        System.out.println("   " + (matches ? "✅" : "❌") + " Budget Check: budgetAvailable=" +
+                budgetAvailable + ", operator=" + operator);
+        return matches;
+    }
+
+    private boolean matchesIndentorDepartment(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        String branchDept = String.valueOf(branchConditions.get("indentorDepartment"));
+        String actualDept = String.valueOf(actualConditions.get("indentorDepartment"));
+
+        if (actualDept == null || "null".equals(actualDept) || actualDept.trim().isEmpty()) {
+            System.out.println("   ❌ IndentorDepartment: actualDept is null or empty");
+            return false;
+        }
+
+        boolean matches = branchDept.trim().equalsIgnoreCase(actualDept.trim());
+        System.out.println("   " + (matches ? "✅" : "❌") + " IndentorDepartment: '" + actualDept + "' vs '" + branchDept + "'");
+        return matches;
+    }
+
+    private boolean matchesModeOfProcurement(Map<String, Object> branchConditions, Map<String, Object> actualConditions) {
+        String branchMOP = String.valueOf(branchConditions.get("modeOfProcurement"));
+        String actualMOP = String.valueOf(actualConditions.get("modeOfProcurement"));
+
+        if (actualMOP == null || "null".equals(actualMOP) || actualMOP.trim().isEmpty()) {
+            System.out.println("   ❌ Mode of Procurement: actualMOP is null or empty");
+            return false;
+        }
+
+        // Normalize for comparison
+        String normalizedBranch = branchMOP.trim().toUpperCase().replace(" ", "_").replace("-", "_");
+        String normalizedActual = actualMOP.trim().toUpperCase().replace(" ", "_").replace("-", "_");
+
+        boolean matches = normalizedBranch.equals(normalizedActual);
+        System.out.println("   " + (matches ? "✅" : "❌") + " Mode of Procurement: '" + actualMOP +
+                "' vs '" + branchMOP + "'");
+        return matches;
     }
 }

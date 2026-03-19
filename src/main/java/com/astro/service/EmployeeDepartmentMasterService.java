@@ -3,6 +3,7 @@ package com.astro.service;
 import com.astro.dto.workflow.*;
 
 import java.util.List;
+import java.util.Map;
 
 public interface EmployeeDepartmentMasterService {
 
@@ -55,4 +56,13 @@ public interface EmployeeDepartmentMasterService {
 
     // TC_15 FIX: Advanced employee search
     List<EmployeeDepartmentMasterResponseDto> advancedSearch(String searchTerm, String department, String location);
+
+    // Get all reporting officers for LOV dropdown
+    List<ReportingOfficerDto> getAllReportingOfficers();
+
+    // Get all Indian states for LOV dropdown
+    List<Map<String, String>> getAllStates();
+
+    // Get cities by state for LOV dropdown
+    List<Map<String, String>> getCitiesByState(String state);
 }

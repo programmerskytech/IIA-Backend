@@ -50,11 +50,17 @@ public class ProjectMaster {
     @Column(name = "category", length = 100)
     private String category;
 
+    @Column(name = "budget_code", length = 100)
+    private String budgetCode;
+
     @Column(name = "remarks_notes")
     private String remarksNotes;
 
-    @Column(name = "project_head")
-    private String projectHead;
+    @Column(name = "project_head", length = 50)
+    private String projectHead; // Stores employee ID of the project head
+
+    @Column(name = "project_head_name", length = 150)
+    private String projectHeadName; // Stores name of the project head for display
 
     @Column(name = "created_by")
     private String createdBy;

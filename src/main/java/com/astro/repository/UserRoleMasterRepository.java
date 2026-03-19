@@ -20,5 +20,8 @@ public interface UserRoleMasterRepository extends JpaRepository<UserRoleMaster, 
     @Query("SELECT ur.roleId FROM UserRoleMaster ur WHERE ur.userId = :userId")
     Optional<Integer> findRoleIdByUserId(@Param("userId") Integer userId);
 
+    @Query("SELECT ur.roleId FROM UserRoleMaster ur WHERE ur.userId = :userId")
+    List<Integer> findAllRoleIdsByUserId(@Param("userId") Integer userId);
+
     List<UserRoleMaster> findAllByUserId(Integer userId);
 }

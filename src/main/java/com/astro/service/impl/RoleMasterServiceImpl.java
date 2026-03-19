@@ -55,8 +55,21 @@ public class RoleMasterServiceImpl implements RoleMasterService {
 
     @Override
     public List<RoleDto> getAllRoles() {
-          List<RoleMaster> roleMasters = roleMasterRepository.findAll();
-        return roleMasters.stream().map(this::mapToResponseDTO).collect(Collectors.toList());
+        List<RoleMaster> roleMasters = roleMasterRepository.findAll();
+        // Filter out empty/null/whitespace roles and deprecated roles
+        return roleMasters.stream()
+                .filter(role -> {
+                    String roleName = role.getRoleName();
+                    // Exclude null, empty, or whitespace-only role names
+                    if (roleName == null || roleName.trim().isEmpty()) {
+                        return false;
+                    }
+                    // Exclude deprecated/removed roles
+                    String trimmedName = roleName.trim().toLowerCase();
+                    return !trimmedName.equals("heas sag");
+                })
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Override

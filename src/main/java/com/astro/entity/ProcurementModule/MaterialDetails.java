@@ -54,6 +54,9 @@ public class MaterialDetails {
     @Column(name="currency")
     private String currency;
 
+    @Column(name = "conversion_rate")
+    private BigDecimal conversionRate;
+
     @ManyToOne
     @JoinColumn(name = "indent_id", referencedColumnName = "indent_id")
     private IndentCreation indentCreation;

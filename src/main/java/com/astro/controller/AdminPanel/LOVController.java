@@ -120,7 +120,7 @@ public class LOVController {
      */
     @GetMapping("/designators/{designatorId}/values")
     public ResponseEntity<Object> getLOVValues(@PathVariable Long designatorId) {
-        List<LOVMaster> values = lovService.getActiveLOVsByDesignatorId(designatorId);
+        List<LOVMaster> values = lovService.getLOVsByDesignatorId(designatorId);
         List<LOVResponseDto> response = values.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());

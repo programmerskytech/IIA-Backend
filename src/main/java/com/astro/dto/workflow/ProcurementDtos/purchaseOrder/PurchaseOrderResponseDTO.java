@@ -16,7 +16,7 @@ public class PurchaseOrderResponseDTO {
     private String warranty;
     private String consignesAddress;
     private String billingAddress;
-    private BigDecimal deliveryPeriod;
+    private String deliveryPeriod; // updated by abhinav to string from BigDecimal
     private Boolean ifLdClauseApplicable;
     private String incoTerms;
     private String paymentTerms;
@@ -37,7 +37,7 @@ public class PurchaseOrderResponseDTO {
     private BigDecimal buyBackAmount;
     private List<PurchaseOrderAttributesResponseDTO> purchaseOrderAttributes;
     private Integer createdBy;
-    private String updatedBy;
+    private Integer updatedBy; // updated by abhinav
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
 }

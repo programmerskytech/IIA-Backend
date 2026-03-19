@@ -2,6 +2,7 @@ package com.astro.service.impl;
 
 import ch.qos.logback.core.net.SyslogOutputStream;
 import com.astro.constant.AppConstant;
+import com.astro.constant.WorkflowName; // added by abhinav
 import com.astro.dto.workflow.ApprovedIndentsDto;
 import com.astro.dto.workflow.ApprovedTenderDto;
 import com.astro.dto.workflow.ProcurementDtos.*;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.springframework.context.annotation.Lazy; //added by abhinav
 
 @Service
 public class TenderRequestServiceImpl implements TenderRequestService {
@@ -70,7 +72,10 @@ public class TenderRequestServiceImpl implements TenderRequestService {
     private UserMasterRepository userRepository;
     @Autowired
     private VendorQuotationAgainstTenderService vqService;
-
+    // added  by abhinav
+    @Autowired
+    @Lazy
+    private WorkflowService workflowService;
 
     @Value("${filePath}")
     private String bp;
@@ -84,12 +89,98 @@ public class TenderRequestServiceImpl implements TenderRequestService {
     public TenderResponseDto createTenderRequest(TenderRequestDto tenderRequestDto) {
 
         // Check if the indentorId already exists
-     /*   if (TRrepo.existsById(tenderRequestDto.getTenderId())) {
+        /*   if (TRrepo.existsById(tenderRequestDto.getTenderId())) {
             ErrorDetails errorDetails = new ErrorDetails(400, 1, "Duplicate Tender Request ID", "Tender ID " + tenderRequestDto.getTenderId() + " already exists.");
             throw new InvalidInputException(errorDetails);
         }
-      */
+         */
+        // added by abhinav line start here
+        //  Validate that at least one indent ID is provided
+        if (tenderRequestDto.getIndentId() == null || tenderRequestDto.getIndentId().isEmpty()) {
+            throw new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_RESOURCE,
+                            "At least one approved indent is required to create a tender."
+                    )
+            );
+        }
 
+        for (String indentIdStr : tenderRequestDto.getIndentId()) {
+
+            IndentCreation indent = indentCreationRepository.findById(indentIdStr)
+                    .orElseThrow(() -> new BusinessException(
+                    new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_RESOURCE,
+                            "Indent not found: " + indentIdStr
+                    )
+            ));
+
+            //  Check if indent is approved
+            // if (indent.getCurrentStatus() == null
+            //         || !"APPROVED".equalsIgnoreCase(indent.getCurrentStatus())) {
+            //     throw new BusinessException(
+            //             new ErrorDetails(
+            //                     AppConstant.ERROR_CODE_RESOURCE,
+            //                     AppConstant.ERROR_TYPE_CODE_RESOURCE,
+            //                     AppConstant.ERROR_TYPE_RESOURCE,
+            //                     "Tender can only be created for APPROVED indents. Current status: "
+            //                     + indent.getCurrentStatus()
+            //             )
+            //     );
+            // }
+            // Check approval from workflow table instead of indent table
+            WorkflowTransition latestTransition
+                    = workflowTransitionRepository
+                            .findTopByRequestIdOrderByWorkflowSequenceDesc(indentIdStr);
+
+            if (latestTransition == null
+                    || !"Completed".equalsIgnoreCase(latestTransition.getStatus())) {
+
+                throw new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Tender can only be created for fully approved indents. Current workflow status: "
+                                + (latestTransition != null
+                                        ? latestTransition.getStatus()
+                                        : "NOT_FOUND")
+                        )
+                );
+            }
+
+            //  Check if indent is cancelled
+            if (Boolean.TRUE.equals(indent.getCancelStatus())) {
+
+                throw new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Cannot create tender for cancelled indent: " + indentIdStr
+                        )
+                );
+            }
+
+            // Check if indent already used in another tender
+            if (Boolean.TRUE.equals(indent.getIsLockedForTender())) {
+
+                throw new BusinessException(
+                        new ErrorDetails(
+                                AppConstant.ERROR_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                                AppConstant.ERROR_TYPE_RESOURCE,
+                                "Indent already used in another tender: " + indentIdStr
+                        )
+                );
+            }
+        }
+
+        // added by abhinav line end here
         Integer maxNumber = TRrepo.findMaxTenderNumber();
         int nextNumber = (maxNumber == null) ? 1001 : maxNumber + 1;
 
@@ -239,6 +330,13 @@ public class TenderRequestServiceImpl implements TenderRequestService {
 
 
         TRrepo.save(tenderRequest);
+
+        // INITIATE TENDER WORKFLOW AFTER CREATION
+        workflowService.initiateWorkflow( // added this line by abhinav
+                tenderRequest.getTenderId(),
+                WorkflowName.TENDER_APPROVER.getValue(),
+                tenderRequestDto.getCreatedBy()
+        );
 
         // Bug Fix 2: Lock all indents associated with this tender
         for (String indentIdStr : tenderRequestDto.getIndentId()) {

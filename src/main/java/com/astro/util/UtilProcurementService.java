@@ -4,6 +4,8 @@ import com.astro.constant.AppConstant;
 import com.astro.dto.workflow.ProcurementDtos.CancelTenderRequestDto;
 import com.astro.dto.workflow.ProcurementDtos.TenderWithIndentResponseDTO;
 import com.astro.dto.workflow.TransitionActionReqDto;
+import com.astro.entity.ProcurementModule.PurchaseOrder; // added by abhinav
+import com.astro.entity.ProcurementModule.ServiceOrder; // added by abhinav
 import com.astro.entity.ProcurementModule.TenderRequest;
 import com.astro.entity.VendorQuotationAgainstTender;
 import com.astro.entity.WorkflowTransition;
@@ -19,6 +21,9 @@ import com.astro.service.TenderRequestService;
 import com.astro.service.WorkflowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderRepository;  // added by abhinav
+import com.astro.repository.ProcurementModule.ServiceOrderRepository.ServiceOrderRepository;  // added by abhinav
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -45,6 +50,11 @@ public class UtilProcurementService {
     private TenderRequestService tenderRequestService;
     @Autowired
     private TenderEmailService tenderEmailService;
+    // added by abhinav
+    @Autowired
+    private PurchaseOrderRepository purchaseOrderRepository; // added
+    @Autowired
+    private ServiceOrderRepository serviceOrderRepository;  //  added
 
     public String cancelTender(CancelTenderRequestDto request) {
         TenderRequest tenderRequest = TRrepo.findById(request.getTenderId())

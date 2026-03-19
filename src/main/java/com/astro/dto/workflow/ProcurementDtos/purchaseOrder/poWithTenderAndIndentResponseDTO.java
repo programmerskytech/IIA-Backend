@@ -16,7 +16,7 @@ public class poWithTenderAndIndentResponseDTO {
  private String warranty;
  private String consignesAddress;
  private String billingAddress;
- private BigDecimal deliveryPeriod;
+ private String deliveryPeriod; // updated by abhinav to string from BigDecimal
  private Boolean ifLdClauseApplicable;
  private String incoTerms;
  private String paymentTerms;
@@ -35,7 +35,8 @@ public class poWithTenderAndIndentResponseDTO {
  private String deliveryDate;
  private List<PurchaseOrderAttributesResponseDTO> purchaseOrderAttributes;
  private Integer createdBy;
- private String updatedBy;
+//  private String updatedBy;
+ private Integer updatedBy; //updated by abhinav to Integer to match createdBy type
  private String comparativeStatementFileName;
  private LocalDateTime createdDate;
  private LocalDateTime updatedDate;

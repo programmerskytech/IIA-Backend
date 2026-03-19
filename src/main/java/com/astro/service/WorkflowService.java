@@ -2,6 +2,7 @@ package com.astro.service;
 
 import com.astro.dto.workflow.*;
 import com.astro.dto.workflow.ProcurementDtos.pendingRecordsDto;
+import com.astro.entity.WorkflowTransition; // added by abhinav for auto approval
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public interface WorkflowService {
     public List<WorkflowTransitionDto> workflowTransitionHistory(String requestId);
     public List<WorkflowTransitionDto> allWorkflowTransition(String roleName);
     public List<WorkflowTransitionDto> allPendingWorkflowTransition(String roleName);
+    public List<WorkflowTransitionDto> allPendingWorkflowTransition(String roleName, Integer userId);
     public List<CompletedIndentsQueueResponse> allCompletedWorkflowTransition(String roleName);
     public List<String> allPreviousRoleWorkflowTransition(Integer workflowId, String requestId);
     public TransitionDto nextTransition(Integer workflowId, String workflowName, String currentRole, String requestId);
@@ -34,10 +36,13 @@ public interface WorkflowService {
    public List<String> getApprovedPoIds();
 
     public List<QueueResponse> allPendingWorkflowTransitionINQueue(String roleName);
+    public List<QueueResponse> allPendingWorkflowTransitionINQueue(String roleName, Integer userId);
     public List<SubWorkflowQueueDto> getSubWorkflowQueue(Integer modifiedBy);
 
     public List<WorkflowTransitionDto> performAllTransitionAction(List<TransitionActionReqDto> transitionActionReqDto);
     public List<QueueResponse> allCancelledIndents();
     public List<pendingRecordsDto> getPendingRecordsForRole(String roleName);
+
+    public WorkflowTransitionDto performAutoApproval(WorkflowTransition pendingTransition, Integer autoApproveHours);
 
 }

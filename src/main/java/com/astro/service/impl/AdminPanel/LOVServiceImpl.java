@@ -178,6 +178,17 @@ public class LOVServiceImpl implements LOVService {
     }
 
     @Override
+    @Cacheable(value = "activeLovsByFormAndField", key = "#formName + '_' + #fieldName")
+    public List<LOVMaster> getActiveLOVsByFormAndField(String formName, String fieldName) {
+        Optional<DesignatorMaster> designator = getDesignatorByFormAndName(formName, fieldName);
+        if (designator.isPresent()) {
+            // Return ONLY active LOVs for frontend dropdowns
+            return lovMasterRepository.findByDesignatorIdAndIsActiveTrueOrderByDisplayOrderAsc(designator.get().getDesignatorId());
+        }
+        return new ArrayList<>();
+    }
+
+    @Override
     @Cacheable(value = "lovById", key = "#lovId")
     public Optional<LOVMaster> getLOVById(Long lovId) {
         return lovMasterRepository.findById(lovId);
@@ -190,7 +201,16 @@ public class LOVServiceImpl implements LOVService {
     }
 
     @Override
-    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "allDropdownsForForm", "totalActiveLOVCount"}, allEntries = true)
+    @Cacheable(value = "activeDependentLovs", key = "#parentLovId")
+    public List<LOVMaster> getActiveDependentLOVs(Long parentLovId) {
+        // Return ONLY active dependent LOVs for frontend
+        return lovMasterRepository.findByParentLovId(parentLovId).stream()
+                .filter(lov -> Boolean.TRUE.equals(lov.getIsActive()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "activeLovsByFormAndField", "allDropdownsForForm", "activeDropdownsForForm", "totalActiveLOVCount", "activeDependentLovs"}, allEntries = true)
     public LOVMaster createLOV(LOVMaster lovMaster) {
         // Check for duplicate
         Optional<LOVMaster> existing = lovMasterRepository.findByDesignatorIdAndLovValue(
@@ -206,7 +226,7 @@ public class LOVServiceImpl implements LOVService {
     }
 
     @Override
-    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "lovById", "allDropdownsForForm", "totalActiveLOVCount"}, allEntries = true)
+    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "activeLovsByFormAndField", "lovById", "allDropdownsForForm", "activeDropdownsForForm", "totalActiveLOVCount", "activeDependentLovs", "dependentLovs"}, allEntries = true)
     public LOVMaster updateLOV(Long lovId, LOVMaster lovMaster) {
         Optional<LOVMaster> existingLOV = lovMasterRepository.findById(lovId);
         if (existingLOV.isPresent()) {
@@ -229,18 +249,14 @@ public class LOVServiceImpl implements LOVService {
     }
 
     @Override
-    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "lovById", "allDropdownsForForm", "totalActiveLOVCount"}, allEntries = true)
+    @CacheEvict(value = {"lovsByDesignatorId", "activeLovsByDesignatorId", "lovsByFormAndField", "activeLovsByFormAndField", "lovById", "allDropdownsForForm", "activeDropdownsForForm", "totalActiveLOVCount", "activeDependentLovs", "dependentLovs"}, allEntries = true)
     public void deleteLOV(Long lovId) {
-        Optional<LOVMaster> existingLOV = lovMasterRepository.findById(lovId);
-        if (existingLOV.isPresent()) {
-            LOVMaster lov = existingLOV.get();
-            lov.setIsActive(false);
-            lovMasterRepository.save(lov);
-            entityManager.flush(); // Force immediate database write
-            entityManager.clear(); // Clear persistence context to ensure fresh reads
-        } else {
+        if (!lovMasterRepository.existsById(lovId)) {
             throw new RuntimeException("LOV not found with ID: " + lovId);
         }
+        lovMasterRepository.deleteById(lovId);
+        entityManager.flush();
+        entityManager.clear();
     }
 
     // ========== BULK OPERATIONS ==========
@@ -265,6 +281,25 @@ public class LOVServiceImpl implements LOVService {
     }
 
     @Override
+    @Cacheable(value = "activeDropdownsForForm", key = "#formName")
+    public Map<String, List<LOVMaster>> getActiveDropdownsForForm(String formName) {
+        Map<String, List<LOVMaster>> result = new HashMap<>();
+
+        Optional<FormMaster> form = formMasterRepository.findByFormName(formName);
+        if (form.isPresent()) {
+            List<DesignatorMaster> designators = designatorMasterRepository.findByFormIdAndIsActiveTrue(form.get().getFormId());
+
+            for (DesignatorMaster designator : designators) {
+                // Return ONLY active LOVs for frontend dropdowns
+                List<LOVMaster> lovs = lovMasterRepository.findByDesignatorIdAndIsActiveTrueOrderByDisplayOrderAsc(designator.getDesignatorId());
+                result.put(designator.getDesignatorName(), lovs);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
     public Map<String, List<LOVMaster>> getBulkLOVs(List<String> formFieldPairs) {
         Map<String, List<LOVMaster>> result = new HashMap<>();
 
@@ -274,6 +309,24 @@ public class LOVServiceImpl implements LOVService {
                 String formName = parts[0];
                 String fieldName = parts[1];
                 List<LOVMaster> lovs = getLOVsByFormAndField(formName, fieldName);
+                result.put(pair, lovs);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, List<LOVMaster>> getActiveBulkLOVs(List<String> formFieldPairs) {
+        Map<String, List<LOVMaster>> result = new HashMap<>();
+
+        for (String pair : formFieldPairs) {
+            String[] parts = pair.split("\\.");
+            if (parts.length == 2) {
+                String formName = parts[0];
+                String fieldName = parts[1];
+                // Use active-only method for frontend
+                List<LOVMaster> lovs = getActiveLOVsByFormAndField(formName, fieldName);
                 result.put(pair, lovs);
             }
         }

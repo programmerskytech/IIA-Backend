@@ -1,17 +1,17 @@
 package com.astro.controller;
 
 import com.astro.dto.AdminPanel.LOVResponseDto;
+import com.astro.dto.workflow.ReportingOfficerDto;
 import com.astro.entity.AdminPanel.LOVMaster;
 import com.astro.service.AdminPanel.LOVService;
+import com.astro.service.EmployeeDepartmentMasterService;
 import com.astro.util.ResponseBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +27,9 @@ public class CommonLOVController {
 
     @Autowired
     private LOVService lovService;
+
+    @Autowired
+    private EmployeeDepartmentMasterService employeeDepartmentMasterService;
 
     /**
      * Get dropdown values for a specific field in a form
@@ -63,7 +66,8 @@ public class CommonLOVController {
     public ResponseEntity<Object> getDropdownValues(
             @PathVariable String formName,
             @PathVariable String fieldName) {
-        List<LOVMaster> values = lovService.getLOVsByFormAndField(formName, fieldName);
+        // FIX: Use active-only method for frontend dropdowns - deleted items should not show
+        List<LOVMaster> values = lovService.getActiveLOVsByFormAndField(formName, fieldName);
         List<LOVResponseDto> response = values.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
@@ -93,7 +97,8 @@ public class CommonLOVController {
      */
     @GetMapping("/form/{formName}")
     public ResponseEntity<Object> getAllDropdownsForForm(@PathVariable String formName) {
-        Map<String, List<LOVMaster>> dropdowns = lovService.getAllDropdownsForForm(formName);
+        // FIX: Use active-only method for frontend dropdowns - deleted items should not show
+        Map<String, List<LOVMaster>> dropdowns = lovService.getActiveDropdownsForForm(formName);
 
         // Convert to DTO format
         Map<String, List<LOVResponseDto>> response = new HashMap<>();
@@ -134,7 +139,8 @@ public class CommonLOVController {
      */
     @PostMapping("/bulk")
     public ResponseEntity<Object> getBulkDropdowns(@RequestBody List<String> formFieldPairs) {
-        Map<String, List<LOVMaster>> bulkLOVs = lovService.getBulkLOVs(formFieldPairs);
+        // FIX: Use active-only method for frontend dropdowns - deleted items should not show
+        Map<String, List<LOVMaster>> bulkLOVs = lovService.getActiveBulkLOVs(formFieldPairs);
 
         // Convert to DTO format
         Map<String, List<LOVResponseDto>> response = new HashMap<>();
@@ -166,7 +172,8 @@ public class CommonLOVController {
      */
     @GetMapping("/dependent/{parentLovId}")
     public ResponseEntity<Object> getDependentDropdowns(@PathVariable Long parentLovId) {
-        List<LOVMaster> dependentValues = lovService.getDependentLOVs(parentLovId);
+        // FIX: Use active-only method for frontend dropdowns - deleted items should not show
+        List<LOVMaster> dependentValues = lovService.getActiveDependentLOVs(parentLovId);
         List<LOVResponseDto> response = dependentValues.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
@@ -225,6 +232,72 @@ public class CommonLOVController {
     @GetMapping("/employee/locations")
     public ResponseEntity<Object> getEmployeeLocations() {
         return getDropdownValues("EmployeeRegistration", "location");
+    }
+
+    /**
+     * Get all reporting officers for employee registration dropdown.
+     * Returns list of active employees with their Employee ID and Name.
+     *
+     * GET /api/lov/employee/reporting-officers
+     *
+     * Response Format:
+     * {
+     *   "status": "success",
+     *   "data": [
+     *     {
+     *       "employeeId": "E1001",
+     *       "employeeName": "John Doe",
+     *       "designation": "Manager",
+     *       "departmentName": "IT",
+     *       "displayValue": "E1001 - John Doe"
+     *     }
+     *   ]
+     * }
+     */
+    @GetMapping("/employee/reporting-officers")
+    public ResponseEntity<Object> getReportingOfficers() {
+        List<ReportingOfficerDto> reportingOfficers = employeeDepartmentMasterService.getAllReportingOfficers();
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(reportingOfficers), HttpStatus.OK);
+    }
+
+    /**
+     * Get all Indian states for employee registration dropdown.
+     *
+     * GET /api/lov/employee/states
+     *
+     * Response Format:
+     * {
+     *   "status": "success",
+     *   "data": [
+     *     { "value": "Karnataka", "displayValue": "Karnataka" },
+     *     { "value": "Maharashtra", "displayValue": "Maharashtra" }
+     *   ]
+     * }
+     */
+    @GetMapping("/employee/states")
+    public ResponseEntity<Object> getStates() {
+        List<Map<String, String>> states = employeeDepartmentMasterService.getAllStates();
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(states), HttpStatus.OK);
+    }
+
+    /**
+     * Get cities by state for employee registration dropdown (cascading dropdown).
+     *
+     * GET /api/lov/employee/cities?state=Karnataka
+     *
+     * Response Format:
+     * {
+     *   "status": "success",
+     *   "data": [
+     *     { "value": "Bangalore", "displayValue": "Bangalore" },
+     *     { "value": "Mysore", "displayValue": "Mysore" }
+     *   ]
+     * }
+     */
+    @GetMapping("/employee/cities")
+    public ResponseEntity<Object> getCitiesByState(@RequestParam String state) {
+        List<Map<String, String>> cities = employeeDepartmentMasterService.getCitiesByState(state);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(cities), HttpStatus.OK);
     }
 
     @GetMapping("/job/categories")
@@ -295,6 +368,58 @@ public class CommonLOVController {
     @GetMapping("/tender/payment-terms")
     public ResponseEntity<Object> getPaymentTerms() {
         return getDropdownValues("TenderRequest", "paymentTerms");
+    }
+
+    /**
+     * Get all employees for Project Head dropdown in Project Master form.
+     * Returns list of active employees with their Employee ID and Name.
+     *
+     * GET /api/lov/project/heads
+     */
+    @GetMapping("/project/heads")
+    public ResponseEntity<Object> getProjectHeads() {
+        List<ReportingOfficerDto> employees = employeeDepartmentMasterService.getAllReportingOfficers();
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(employees), HttpStatus.OK);
+    }
+
+    /**
+     * Get department dropdown values for Project Master form.
+     *
+     * GET /api/lov/project/departments
+     */
+    @GetMapping("/project/departments")
+    public ResponseEntity<Object> getProjectDepartments() {
+        return getDropdownValues("ProjectMaster", "department");
+    }
+
+    /**
+     * Get category dropdown values for Project Master form.
+     *
+     * GET /api/lov/project/categories
+     */
+    @GetMapping("/project/categories")
+    public ResponseEntity<Object> getProjectCategories() {
+        return getDropdownValues("ProjectMaster", "category");
+    }
+
+    /**
+     * Get budget type dropdown values for Project Master form.
+     *
+     * GET /api/lov/project/budget-types
+     */
+    @GetMapping("/project/budget-types")
+    public ResponseEntity<Object> getProjectBudgetTypes() {
+        return getDropdownValues("ProjectMaster", "budgetType");
+    }
+
+    /**
+     * Get status dropdown values for Project Master form.
+     *
+     * GET /api/lov/project/statuses
+     */
+    @GetMapping("/project/statuses")
+    public ResponseEntity<Object> getProjectStatuses() {
+        return getDropdownValues("ProjectMaster", "status");
     }
 
     // ========== HELPER METHOD ==========

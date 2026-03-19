@@ -57,15 +57,19 @@ public class EmployeeDepartmentMaster {
     @Column(name = "state", length = 100)
     private String state;
 
-    @Column(name = "zip_code", length = 20)
-    private String zipCode;
+    @Column(name = "pin_code", length = 20)
+    private String pinCode;
 
     // Additional employment fields (NEW)
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
-    @Column(name = "manager", length = 100)
-    private String manager;
+    // Reporting Officer fields (renamed from manager)
+    @Column(name = "reporting_officer_id", length = 50)
+    private String reportingOfficerId;
+
+    @Column(name = "reporting_officer_name", length = 150)
+    private String reportingOfficerName;
 
     @Column(name = "employment_type", length = 50)
     private String employmentType; // Full-time, Part-time, Contract

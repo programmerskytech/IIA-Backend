@@ -4,6 +4,7 @@ import com.astro.constant.AppConstant;
 import com.astro.dto.workflow.LoginRoleDto;
 import com.astro.dto.workflow.UserDto;
 import com.astro.dto.workflow.UserRoleDto;
+import com.astro.dto.workflow.UserSearchResponseDto;
 import com.astro.dto.workflow.userRequestDto;
 import com.astro.entity.EmployeeDepartmentMaster;
 import com.astro.entity.RoleMaster;
@@ -72,14 +73,26 @@ public class UserServiceImpl implements UserService {
             if(Objects.isNull(userMaster)){
                 throw new InvalidInputException(
                     new ErrorDetails(
-                        AppConstant.USER_NOT_FOUND, 
+                        AppConstant.USER_NOT_FOUND,
                         AppConstant.ERROR_TYPE_CODE_VALIDATION,
-                        AppConstant.ERROR_TYPE_VALIDATION, 
+                        AppConstant.ERROR_TYPE_VALIDATION,
                         "User not found."
                     )
                 );
             }
-            
+
+            // Check if user is active
+            if(Boolean.FALSE.equals(userMaster.getIsActive())){
+                throw new InvalidInputException(
+                    new ErrorDetails(
+                        AppConstant.USER_NOT_FOUND,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                        AppConstant.ERROR_TYPE_VALIDATION,
+                        "Your account has been deactivated. Please contact the administrator."
+                    )
+                );
+            }
+
             // Verify encrypted password
             if(!passwordEncoder.matches(userDto.getPassword(), userMaster.getPassword())){
                 throw new InvalidInputException(
@@ -287,17 +300,67 @@ public class UserServiceImpl implements UserService {
             ));
 
         userMaster.setUserName(userDto.getUserName());
-        
+
         // Only update password if a new one is provided
         if(userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
             userMaster.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
-        
+
         userMaster.setMobileNumber(userDto.getMobileNumber());
         userMaster.setEmail(userDto.getEmail());
         userMaster.setCreatedBy(userDto.getCreatedBy());
-        
+
+        // Update employee ID if provided
+        if(userDto.getEmployeeId() != null) {
+            userMaster.setEmployeeId(userDto.getEmployeeId());
+        }
+
         userMasterRepository.save(userMaster);
+
+        // Update roles if provided
+        List<String> rolesToAssign = new ArrayList<>();
+        if (userDto.getRoleNames() != null && !userDto.getRoleNames().isEmpty()) {
+            rolesToAssign = userDto.getRoleNames();
+        } else if (userDto.getRoleName() != null && !userDto.getRoleName().trim().isEmpty()) {
+            // Handle comma-separated role names
+            String[] roleArray = userDto.getRoleName().split(",");
+            for (String role : roleArray) {
+                if (role.trim().length() > 0) {
+                    rolesToAssign.add(role.trim());
+                }
+            }
+        }
+
+        if (!rolesToAssign.isEmpty()) {
+            // Delete existing roles for this user
+            List<UserRoleMaster> existingRoles = userRoleMasterRepository.findAllByUserId(userId);
+            if (existingRoles != null && !existingRoles.isEmpty()) {
+                userRoleMasterRepository.deleteAll(existingRoles);
+            }
+
+            // Add new roles
+            for (String roleName : rolesToAssign) {
+                RoleMaster role = roleMasterRepository.findFirstByRoleName(roleName)
+                    .orElseThrow(() -> new BusinessException(
+                        new ErrorDetails(
+                            AppConstant.ERROR_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Role with name '" + roleName + "' not found."
+                        )
+                    ));
+
+                UserRoleMaster userRole = new UserRoleMaster();
+                userRole.setUserId(userMaster.getUserId());
+                userRole.setRoleId(role.getRoleId());
+                userRole.setReadPermission(true);
+                userRole.setWritePermission(true);
+                userRole.setCreatedBy(userDto.getCreatedBy());
+                userRole.setCreatedDate(new Date());
+                userRoleMasterRepository.save(userRole);
+            }
+        }
+
         return mapToResponseDTO(userMaster);
     }
 
@@ -404,9 +467,128 @@ public class UserServiceImpl implements UserService {
         userDto.setEmail(userMaster.getEmail());
         userDto.setMobileNumber(userMaster.getMobileNumber());
         userDto.setEmployeeId(userMaster.getEmployeeId());
-        userDto.setRoleName(userMaster.getRoleName());
         userDto.setCreatedDate(userMaster.getCreatedDate());
         userDto.setCreatedBy(userMaster.getCreatedBy());
+
+        // FIX: Fetch roles from user_role_master table for this user
+        List<UserRoleMaster> userRoles = userRoleMasterRepository.findAllByUserId(userMaster.getUserId());
+        if (userRoles != null && !userRoles.isEmpty()) {
+            List<String> roleNames = userRoles.stream()
+                    .map(ur -> {
+                        Optional<RoleMaster> role = roleMasterRepository.findById(ur.getRoleId());
+                        return role.map(RoleMaster::getRoleName).orElse(null);
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            userDto.setRoleNames(roleNames);
+            // Also set the combined role names as the primary roleName for display
+            if (!roleNames.isEmpty()) {
+                userDto.setRoleName(String.join(", ", roleNames));
+            }
+        } else {
+            // Fall back to roleName from user_master if no roles in junction table
+            userDto.setRoleName(userMaster.getRoleName());
+            if (userMaster.getRoleName() != null && !userMaster.getRoleName().isEmpty()) {
+                userDto.setRoleNames(List.of(userMaster.getRoleName()));
+            }
+        }
+
+        userDto.setIsActive(userMaster.getIsActive() != null ? userMaster.getIsActive() : true);
+
         return userDto;
+    }
+
+    @Override
+    @Transactional
+    public UserDto toggleUserStatus(int userId) {
+        UserMaster userMaster = userMasterRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(
+                new ErrorDetails(
+                    AppConstant.ERROR_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "User not found for the provided user ID."
+                )
+            ));
+
+        Boolean currentStatus = userMaster.getIsActive() != null ? userMaster.getIsActive() : true;
+        userMaster.setIsActive(!currentStatus);
+        userMasterRepository.save(userMaster);
+
+        return mapToResponseDTO(userMaster);
+    }
+
+    @Override
+    @Transactional
+    public UserDto activateUser(int userId) {
+        UserMaster userMaster = userMasterRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(
+                new ErrorDetails(
+                    AppConstant.ERROR_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "User not found for the provided user ID."
+                )
+            ));
+
+        userMaster.setIsActive(true);
+        userMasterRepository.save(userMaster);
+
+        return mapToResponseDTO(userMaster);
+    }
+
+    @Override
+    @Transactional
+    public UserDto deactivateUser(int userId) {
+        UserMaster userMaster = userMasterRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(
+                new ErrorDetails(
+                    AppConstant.ERROR_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                    AppConstant.ERROR_TYPE_VALIDATION,
+                    "User not found for the provided user ID."
+                )
+            ));
+
+        userMaster.setIsActive(false);
+        userMasterRepository.save(userMaster);
+
+        return mapToResponseDTO(userMaster);
+    }
+
+    @Override
+    public List<UserSearchResponseDto> searchUsers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return getAllUsersWithRoles();
+        }
+
+        List<Object[]> results = userMasterRepository.searchUsersByKeyword(keyword.trim());
+        return results.stream()
+                .map(this::mapToUserSearchResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserSearchResponseDto> getAllUsersWithRoles() {
+        List<Object[]> results = userMasterRepository.getAllUsersWithRoles();
+        return results.stream()
+                .map(this::mapToUserSearchResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    private UserSearchResponseDto mapToUserSearchResponseDto(Object[] row) {
+        UserSearchResponseDto dto = new UserSearchResponseDto();
+        dto.setUserId(row[0] != null ? ((Number) row[0]).intValue() : null);
+        dto.setUserName(row[1] != null ? row[1].toString() : null);
+        dto.setEmail(row[2] != null ? row[2].toString() : null);
+        dto.setMobileNumber(row[3] != null ? row[3].toString() : null);
+        dto.setEmployeeId(row[4] != null ? row[4].toString() : null);
+        dto.setEmployeeName(row[5] != null ? row[5].toString() : null);
+        dto.setRoleNames(row[6] != null ? row[6].toString() : null);
+        dto.setCreatedBy(row[7] != null ? row[7].toString() : null);
+        dto.setCreatedDate(row[8] != null ? row[8].toString() : null);
+        dto.setIsActive(row.length > 9 && row[9] != null ? Boolean.valueOf(row[9].toString()) : true);
+        return dto;
     }
 }

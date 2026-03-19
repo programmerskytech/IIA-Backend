@@ -72,7 +72,12 @@ public class IndentCreationResponseDTO {
     private String employeeName;
     private String employeeDept;
     // Add this field
-private String indentorDepartment;
+    private String indentorDepartment;
+
+    // Project-related fields
+    private Boolean isUnderProject;
+    private String projectCode;
+    private String modeOfProcurement;
 
     // Bug Fix Fields
     private Boolean isEditable;
@@ -83,4 +88,9 @@ private String indentorDepartment;
     private String currentStatus;
     private String currentStage;
     private Integer approvalLevel;
+
+    // New fields for better status display
+    private String statusMessage;  // User-friendly status message
+    private Integer totalApprovalLevels;  // Total number of approval levels for this indent
+    private Boolean isFullyApproved;  // True if all approvals are complete
 }

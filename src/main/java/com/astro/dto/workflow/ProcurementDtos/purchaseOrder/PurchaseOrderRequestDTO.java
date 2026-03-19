@@ -16,7 +16,7 @@ public class PurchaseOrderRequestDTO{
         private String warranty;
         private String consignesAddress;
         private String billingAddress;
-        private BigDecimal deliveryPeriod;
+        private String deliveryPeriod; // updated by abhinav to string from BigDecimal
         private Boolean ifLdClauseApplicable;
         private String incoTerms;
         private String paymentTerms;
@@ -33,7 +33,8 @@ public class PurchaseOrderRequestDTO{
         private String vendorId;
         private List<String> comparativeStatementFileName;
         private List<PurchaseOrderAttributesDTO> purchaseOrderAttributes;
-        private String updatedBy;
+        // private String updatedBy;
+        private Integer updatedBy;  // updated by abhinav
         private Integer createdBy;
         private List<String> gemContractFileName;
 

@@ -96,4 +96,11 @@ public class WorkflowTransition {
 
     @Column(name = "APPROVAL_SEQUENCE")
     private Integer approvalSequence; // Current approval sequence
+
+    // Reporting Officer assignment fields
+    @Column(name = "ASSIGNED_TO_USER_ID")
+    private Integer assignedToUserId; // Specific user this approval is assigned to
+
+    @Column(name = "ASSIGNED_TO_EMPLOYEE_ID", length = 50)
+    private String assignedToEmployeeId; // Employee ID of the assigned user (for reference)
 }

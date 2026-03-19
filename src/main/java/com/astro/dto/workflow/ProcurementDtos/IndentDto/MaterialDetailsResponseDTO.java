@@ -20,5 +20,6 @@ public class MaterialDetailsResponseDTO {
   //  private String materialAndJob;
     private String modeOfProcurement;
     private String currency;
+    private BigDecimal conversionRate;
     private List<String> vendorNames;
 }

@@ -22,8 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -74,12 +73,25 @@ public EmployeeDepartmentMasterResponseDto createEmployeeDepartmentWithUser(Empl
     EmployeeDepartmentMaster employee = new EmployeeDepartmentMaster();
     employee.setEmployeeId(employeeId);
     employee.setEmployeeName(employeeRequestDto.getEmployeeName());
+    employee.setFirstName(employeeRequestDto.getFirstName());
+    employee.setLastName(employeeRequestDto.getLastName());
     employee.setLocation(employeeRequestDto.getLocation());
     employee.setDepartmentName(employeeRequestDto.getDepartmentName());
     employee.setDesignation(employeeRequestDto.getDesignation());
     employee.setPhoneNumber(employeeRequestDto.getPhoneNumber());
     employee.setEmailAddress(employeeRequestDto.getEmailAddress());
     employee.setAddress(employeeRequestDto.getAddress());
+
+    // New address fields
+    employee.setStreetAddress(employeeRequestDto.getStreetAddress());
+    employee.setCity(employeeRequestDto.getCity());
+    employee.setState(employeeRequestDto.getState());
+    employee.setPinCode(employeeRequestDto.getPinCode());
+
+    // Reporting Officer (replaces manager)
+    employee.setReportingOfficerId(employeeRequestDto.getReportingOfficerId());
+    employee.setReportingOfficerName(employeeRequestDto.getReportingOfficerName());
+
     employee.setStatus(employeeRequestDto.getStatus() != null ? employeeRequestDto.getStatus() : "Active");
     employee.setCreatedBy(employeeRequestDto.getCreatedBy());
     employee.setUpdatedBy(employeeRequestDto.getUpdatedBy());
@@ -88,8 +100,8 @@ public EmployeeDepartmentMasterResponseDto createEmployeeDepartmentWithUser(Empl
     employee.setIsDraft(false);
 
     employeeRepository.save(employee);
-    
-    Integer createdUserId = null;  // ✅ ADD THIS: Track created userId
+
+    Integer createdUserId = null;  // Track created userId
     
     // Create user account if requested
     if(employeeRequestDto.getCreateUserAccount() != null && 
@@ -162,12 +174,25 @@ public String getDepartmentByEmployeeName(String employeeName) {
         EmployeeDepartmentMaster employee = new EmployeeDepartmentMaster();
         employee.setEmployeeId(employeeId);
         employee.setEmployeeName(employeeRequestDto.getEmployeeName());
+        employee.setFirstName(employeeRequestDto.getFirstName());
+        employee.setLastName(employeeRequestDto.getLastName());
         employee.setLocation(employeeRequestDto.getLocation());
         employee.setDepartmentName(employeeRequestDto.getDepartmentName());
         employee.setDesignation(employeeRequestDto.getDesignation());
         employee.setPhoneNumber(employeeRequestDto.getPhoneNumber());
         employee.setEmailAddress(employeeRequestDto.getEmailAddress());
         employee.setAddress(employeeRequestDto.getAddress());
+
+        // New address fields
+        employee.setStreetAddress(employeeRequestDto.getStreetAddress());
+        employee.setCity(employeeRequestDto.getCity());
+        employee.setState(employeeRequestDto.getState());
+        employee.setPinCode(employeeRequestDto.getPinCode());
+
+        // Reporting Officer (replaces manager)
+        employee.setReportingOfficerId(employeeRequestDto.getReportingOfficerId());
+        employee.setReportingOfficerName(employeeRequestDto.getReportingOfficerName());
+
         employee.setStatus(employeeRequestDto.getStatus() != null ? employeeRequestDto.getStatus() : "Active");
         employee.setCreatedBy(employeeRequestDto.getCreatedBy());
         employee.setUpdatedBy(employeeRequestDto.getUpdatedBy());
@@ -188,6 +213,21 @@ public String getDepartmentByEmployeeName(String employeeName) {
         responseDto.setPhoneNumber(employee.getPhoneNumber());
         responseDto.setEmailAddress(employee.getEmailAddress());
         responseDto.setAddress(employee.getAddress());
+
+        // New fields - split name
+        responseDto.setFirstName(employee.getFirstName());
+        responseDto.setLastName(employee.getLastName());
+
+        // New fields - split address
+        responseDto.setStreetAddress(employee.getStreetAddress());
+        responseDto.setCity(employee.getCity());
+        responseDto.setState(employee.getState());
+        responseDto.setPinCode(employee.getPinCode());
+
+        // New fields - Reporting Officer (replaces manager)
+        responseDto.setReportingOfficerId(employee.getReportingOfficerId());
+        responseDto.setReportingOfficerName(employee.getReportingOfficerName());
+
         responseDto.setStatus(employee.getStatus());
         responseDto.setIsDraft(employee.getIsDraft());
         responseDto.setCreatedBy(employee.getCreatedBy());
@@ -224,12 +264,25 @@ public String getDepartmentByEmployeeName(String employeeName) {
             ));
 
         employee.setEmployeeName(employeeRequestDto.getEmployeeName());
+        employee.setFirstName(employeeRequestDto.getFirstName());
+        employee.setLastName(employeeRequestDto.getLastName());
         employee.setDepartmentName(employeeRequestDto.getDepartmentName());
         employee.setLocation(employeeRequestDto.getLocation());
         employee.setDesignation(employeeRequestDto.getDesignation());
         employee.setPhoneNumber(employeeRequestDto.getPhoneNumber());
         employee.setEmailAddress(employeeRequestDto.getEmailAddress());
         employee.setAddress(employeeRequestDto.getAddress());
+
+        // Update new address fields
+        employee.setStreetAddress(employeeRequestDto.getStreetAddress());
+        employee.setCity(employeeRequestDto.getCity());
+        employee.setState(employeeRequestDto.getState());
+        employee.setPinCode(employeeRequestDto.getPinCode());
+
+        // Update Reporting Officer (replaces manager)
+        employee.setReportingOfficerId(employeeRequestDto.getReportingOfficerId());
+        employee.setReportingOfficerName(employeeRequestDto.getReportingOfficerName());
+
         if (employeeRequestDto.getStatus() != null) {
             employee.setStatus(employeeRequestDto.getStatus());
         }
@@ -402,12 +455,25 @@ public EmployeeDepartmentMasterResponseDto saveAsDraft(EmployeeDepartmentMasterR
 
     // Set fields - allowing partial/empty values for drafts
     employee.setEmployeeName(requestDto.getEmployeeName() != null ? requestDto.getEmployeeName() : "");
+    employee.setFirstName(requestDto.getFirstName());
+    employee.setLastName(requestDto.getLastName());
     employee.setLocation(requestDto.getLocation() != null ? requestDto.getLocation() : "");
     employee.setDepartmentName(requestDto.getDepartmentName() != null ? requestDto.getDepartmentName() : "");
     employee.setDesignation(requestDto.getDesignation() != null ? requestDto.getDesignation() : "");
     employee.setPhoneNumber(requestDto.getPhoneNumber() != null ? requestDto.getPhoneNumber() : "");
     employee.setEmailAddress(requestDto.getEmailAddress() != null ? requestDto.getEmailAddress() : "");
     employee.setAddress(requestDto.getAddress() != null ? requestDto.getAddress() : "");
+
+    // New address fields
+    employee.setStreetAddress(requestDto.getStreetAddress());
+    employee.setCity(requestDto.getCity());
+    employee.setState(requestDto.getState());
+    employee.setPinCode(requestDto.getPinCode());
+
+    // Reporting Officer (replaces manager)
+    employee.setReportingOfficerId(requestDto.getReportingOfficerId());
+    employee.setReportingOfficerName(requestDto.getReportingOfficerName());
+
     employee.setStatus(requestDto.getStatus() != null ? requestDto.getStatus() : "Active");
     employee.setIsDraft(true);
     employee.setCreatedBy(requestDto.getCreatedBy());
@@ -449,12 +515,25 @@ public EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, Employ
 
     // Update all fields
     employee.setEmployeeName(requestDto.getEmployeeName());
+    employee.setFirstName(requestDto.getFirstName());
+    employee.setLastName(requestDto.getLastName());
     employee.setLocation(requestDto.getLocation());
     employee.setDepartmentName(requestDto.getDepartmentName());
     employee.setDesignation(requestDto.getDesignation());
     employee.setPhoneNumber(requestDto.getPhoneNumber());
     employee.setEmailAddress(requestDto.getEmailAddress());
     employee.setAddress(requestDto.getAddress());
+
+    // New address fields
+    employee.setStreetAddress(requestDto.getStreetAddress());
+    employee.setCity(requestDto.getCity());
+    employee.setState(requestDto.getState());
+    employee.setPinCode(requestDto.getPinCode());
+
+    // Reporting Officer (replaces manager)
+    employee.setReportingOfficerId(requestDto.getReportingOfficerId());
+    employee.setReportingOfficerName(requestDto.getReportingOfficerName());
+
     employee.setStatus(requestDto.getStatus() != null ? requestDto.getStatus() : "Active");
     employee.setIsDraft(false); // Mark as submitted
     employee.setUpdatedBy(requestDto.getUpdatedBy());
@@ -465,10 +544,8 @@ public EmployeeDepartmentMasterResponseDto submitDraft(String employeeId, Employ
 }
 
 private void validateRequiredFields(EmployeeDepartmentMasterRequestDto requestDto) {
-
-
     StringBuilder errors = new StringBuilder();
-    
+
     if (requestDto.getEmployeeName() == null || requestDto.getEmployeeName().trim().isEmpty()) {
         errors.append("Employee name is required. ");
     }
@@ -489,6 +566,16 @@ private void validateRequiredFields(EmployeeDepartmentMasterRequestDto requestDt
     }
     if (requestDto.getAddress() == null || requestDto.getAddress().trim().isEmpty()) {
         errors.append("Address is required. ");
+    }
+    // New mandatory fields validation
+    if (requestDto.getCity() == null || requestDto.getCity().trim().isEmpty()) {
+        errors.append("City is required. ");
+    }
+    if (requestDto.getState() == null || requestDto.getState().trim().isEmpty()) {
+        errors.append("State is required. ");
+    }
+    if (requestDto.getReportingOfficerId() == null || requestDto.getReportingOfficerId().trim().isEmpty()) {
+        errors.append("Reporting Officer is required. ");
     }
 
     if (errors.length() > 0) {
@@ -592,6 +679,90 @@ public List<EmployeeDepartmentMasterResponseDto> advancedSearch(String searchTer
     return employees.stream()
             .map(this::mapToResponseDTO)
             .collect(Collectors.toList());
+}
+
+// Get all reporting officers (active employees) for LOV dropdown
+@Override
+public List<ReportingOfficerDto> getAllReportingOfficers() {
+    List<EmployeeDepartmentMaster> activeEmployees = employeeRepository.findByStatus("Active");
+    return activeEmployees.stream()
+        .filter(emp -> !Boolean.TRUE.equals(emp.getIsDraft()))
+        .map(emp -> new ReportingOfficerDto(
+            emp.getEmployeeId(),
+            emp.getEmployeeName(),
+            emp.getDesignation(),
+            emp.getDepartmentName()
+        ))
+        .collect(Collectors.toList());
+}
+
+// Get all Indian states for LOV dropdown
+@Override
+public List<Map<String, String>> getAllStates() {
+    List<Map<String, String>> states = new ArrayList<>();
+    String[] indianStates = {
+        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+        "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+        "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+        "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+        "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+        "Uttar Pradesh", "Uttarakhand", "West Bengal",
+        "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+        "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+    };
+
+    for (String state : indianStates) {
+        Map<String, String> stateMap = new HashMap<>();
+        stateMap.put("value", state);
+        stateMap.put("displayValue", state);
+        states.add(stateMap);
+    }
+    return states;
+}
+
+// Get cities by state for LOV dropdown
+@Override
+public List<Map<String, String>> getCitiesByState(String state) {
+    List<Map<String, String>> cities = new ArrayList<>();
+
+    // Major cities for each state (can be extended or moved to database)
+    Map<String, String[]> stateCitiesMap = new HashMap<>();
+    stateCitiesMap.put("Karnataka", new String[]{"Bangalore", "Mysore", "Hubli", "Mangalore", "Belgaum", "Gulbarga", "Davangere", "Bellary", "Bijapur", "Shimoga"});
+    stateCitiesMap.put("Maharashtra", new String[]{"Mumbai", "Pune", "Nagpur", "Thane", "Nashik", "Aurangabad", "Solapur", "Kolhapur", "Navi Mumbai", "Amravati"});
+    stateCitiesMap.put("Tamil Nadu", new String[]{"Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli", "Erode", "Vellore", "Thoothukudi", "Dindigul"});
+    stateCitiesMap.put("Telangana", new String[]{"Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Ramagundam", "Mahbubnagar", "Nalgonda", "Adilabad", "Suryapet"});
+    stateCitiesMap.put("Andhra Pradesh", new String[]{"Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool", "Tirupati", "Rajahmundry", "Kakinada", "Kadapa", "Anantapur"});
+    stateCitiesMap.put("Kerala", new String[]{"Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Kollam", "Kannur", "Alappuzha", "Palakkad", "Malappuram", "Kottayam"});
+    stateCitiesMap.put("Gujarat", new String[]{"Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Junagadh", "Gandhinagar", "Anand", "Nadiad"});
+    stateCitiesMap.put("Rajasthan", new String[]{"Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer", "Bikaner", "Alwar", "Bharatpur", "Sikar", "Bhilwara"});
+    stateCitiesMap.put("Uttar Pradesh", new String[]{"Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Ghaziabad", "Noida", "Meerut", "Bareilly", "Aligarh"});
+    stateCitiesMap.put("West Bengal", new String[]{"Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri", "Bardhaman", "Malda", "Baharampur", "Habra", "Kharagpur"});
+    stateCitiesMap.put("Delhi", new String[]{"New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "North East Delhi", "North West Delhi", "South East Delhi", "South West Delhi"});
+    stateCitiesMap.put("Punjab", new String[]{"Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Mohali", "Pathankot", "Hoshiarpur", "Batala", "Moga"});
+    stateCitiesMap.put("Haryana", new String[]{"Faridabad", "Gurgaon", "Panipat", "Ambala", "Yamunanagar", "Rohtak", "Hisar", "Karnal", "Sonipat", "Panchkula"});
+    stateCitiesMap.put("Madhya Pradesh", new String[]{"Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain", "Sagar", "Dewas", "Satna", "Ratlam", "Rewa"});
+    stateCitiesMap.put("Bihar", new String[]{"Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai", "Katihar"});
+    stateCitiesMap.put("Odisha", new String[]{"Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Bhadrak", "Baripada", "Jharsuguda"});
+    stateCitiesMap.put("Jharkhand", new String[]{"Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Deoghar", "Hazaribagh", "Giridih", "Ramgarh", "Medininagar", "Chirkunda"});
+    stateCitiesMap.put("Chhattisgarh", new String[]{"Raipur", "Bhilai", "Bilaspur", "Korba", "Durg", "Rajnandgaon", "Raigarh", "Jagdalpur", "Ambikapur", "Dhamtari"});
+    stateCitiesMap.put("Assam", new String[]{"Guwahati", "Silchar", "Dibrugarh", "Jorhat", "Nagaon", "Tinsukia", "Tezpur", "Bongaigaon", "Dhubri", "North Lakhimpur"});
+    stateCitiesMap.put("Uttarakhand", new String[]{"Dehradun", "Haridwar", "Roorkee", "Haldwani", "Rudrapur", "Kashipur", "Rishikesh", "Pithoragarh", "Ramnagar", "Nainital"});
+    stateCitiesMap.put("Himachal Pradesh", new String[]{"Shimla", "Mandi", "Dharamshala", "Solan", "Nahan", "Bilaspur", "Chamba", "Hamirpur", "Kullu", "Una"});
+    stateCitiesMap.put("Goa", new String[]{"Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda", "Bicholim", "Curchorem", "Sanquelim", "Cuncolim", "Canacona"});
+    stateCitiesMap.put("Jammu and Kashmir", new String[]{"Srinagar", "Jammu", "Anantnag", "Baramulla", "Sopore", "Kathua", "Udhampur", "Kupwara", "Pulwama", "Rajouri"});
+    stateCitiesMap.put("Chandigarh", new String[]{"Chandigarh"});
+    stateCitiesMap.put("Puducherry", new String[]{"Puducherry", "Karaikal", "Mahe", "Yanam"});
+
+    String[] cityArray = stateCitiesMap.getOrDefault(state, new String[]{});
+
+    for (String city : cityArray) {
+        Map<String, String> cityMap = new HashMap<>();
+        cityMap.put("value", city);
+        cityMap.put("displayValue", city);
+        cities.add(cityMap);
+    }
+
+    return cities;
 }
 
 }

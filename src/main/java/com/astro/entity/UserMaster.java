@@ -41,4 +41,8 @@ public class UserMaster {
     @Column(name = "last_password_change_date")
     private LocalDateTime lastPasswordChangeDate;
 
+    // User active/inactive status (soft delete instead of hard delete)
+    @Column(name = "is_active", columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private Boolean isActive = true;
+
 }

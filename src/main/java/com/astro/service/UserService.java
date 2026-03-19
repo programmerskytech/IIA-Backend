@@ -1,6 +1,7 @@
 package com.astro.service;
 
 import com.astro.dto.workflow.UserDto;
+import com.astro.dto.workflow.UserSearchResponseDto;
 import com.astro.dto.workflow.userRequestDto;
 import com.astro.entity.UserMaster;
 
@@ -34,4 +35,15 @@ public interface UserService {
     
     // Method to check if user exists by employee ID
     public boolean userExistsByEmployeeId(String employeeId);
+
+    // Search users by keyword (username, email, mobile, employee ID, employee name)
+    public List<UserSearchResponseDto> searchUsers(String keyword);
+
+    // Get all users with their roles for listing
+    public List<UserSearchResponseDto> getAllUsersWithRoles();
+
+    // Activate/Deactivate user (soft delete)
+    public UserDto toggleUserStatus(int userId);
+    public UserDto activateUser(int userId);
+    public UserDto deactivateUser(int userId);
 }

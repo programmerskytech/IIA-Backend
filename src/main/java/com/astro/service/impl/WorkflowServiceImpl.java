@@ -18,6 +18,7 @@ import com.astro.exception.BusinessException;
 import com.astro.exception.ErrorDetails;
 import com.astro.exception.InvalidInputException;
 import com.astro.repository.*;
+import com.astro.repository.AdminPanel.WorkflowBranchMasterRepository;
 import com.astro.repository.InventoryModule.PaymentVoucherReposiotry;
 import com.astro.repository.ProcurementModule.ContigencyPurchaseRepository;
 import com.astro.repository.ProcurementModule.IndentCreation.IndentCreationRepository;
@@ -31,8 +32,11 @@ import com.astro.util.CommonUtils;
 import com.astro.util.EmailService;
 import com.astro.util.TenderEmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.transaction.Transactional;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -75,9 +79,11 @@ public class WorkflowServiceImpl implements WorkflowService {
     ContigencyPurchaseService contigencyPurchaseService;
 
     @Autowired
+    @Lazy // added by abhinav
     TenderRequestService tenderRequestService;
 
     @Autowired
+    @Lazy // added by abhinav
     ServiceOrderService serviceOrderService;
 
     @Autowired
@@ -132,6 +138,17 @@ public class WorkflowServiceImpl implements WorkflowService {
     private IndentIdRepository indentIdtenderIdsRepository;
     @Autowired
     private PaymentVoucherReposiotry paymentVoucherReposiotry;
+    // added b y abhinav
+    @Autowired
+    private IndentAssignmentRepository indentAssignmentRepository;
+
+    @Autowired
+    private EmployeeDepartmentMasterRepository employeeDepartmentMasterRepository;
+
+    @Autowired
+    private WorkflowBranchMasterRepository workflowBranchMasterRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public WorkflowDto workflowByWorkflowName(String workflowName) {
@@ -274,7 +291,18 @@ public class WorkflowServiceImpl implements WorkflowService {
             userService.validateUser(createdBy);
             WorkflowDto workflowDto = workflowByWorkflowName(workflowName);
 
-            validateWorkflowTransition(requestId, createdBy, workflowDto.getWorkflowId());
+            // validateWorkflowTransition(requestId, createdBy, workflowDto.getWorkflowId());
+            //updated by abhinav
+            List<WorkflowTransition> existingList
+                    = workflowTransitionRepository.findByWorkflowIdAndCreatedByAndRequestId(
+                            workflowDto.getWorkflowId(), createdBy, requestId);
+
+            WorkflowTransition existing = existingList.isEmpty() ? null : existingList.get(0);
+
+            if (existing != null) {
+                // Workflow already initiated, return existing
+                return mapToWorkflowTransitionDto(existing);
+            }
 
             // ===== BRANCH-BASED WORKFLOW ROUTING =====
             WorkflowTransition workflowTransition = initiateBranchBasedWorkflow(requestId, workflowDto, createdBy);
@@ -327,6 +355,209 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     /**
+     * Checks if the given role name represents a Reporting Officer approver type.
+     */
+    private boolean isReportingOfficerRole(String roleName) {
+        return roleName != null && roleName.trim().equalsIgnoreCase("Reporting Officer");
+    }
+
+    /**
+     * Resolves the reporting officer's user ID for the given indent creator.
+     * Flow: creatorUserId -> UserMaster.employeeId -> EmployeeDepartmentMaster.reportingOfficerId -> UserMaster.userId
+     * Returns a map with keys: userId (Integer), employeeId (String), employeeName (String)
+     * Throws BusinessException if the reporting officer or their user account cannot be found.
+     */
+    private Map<String, Object> resolveReportingOfficer(Integer creatorUserId) {
+        // Step 1: Find the creator's user record to get their employeeId
+        UserMaster creatorUser = userMasterRepository.findByUserId(creatorUserId);
+        if (creatorUser == null || creatorUser.getEmployeeId() == null || creatorUser.getEmployeeId().trim().isEmpty()) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve reporting officer: Indent creator (userId=" + creatorUserId +
+                    ") does not have a linked employee record."));
+        }
+
+        // Step 2: Find the creator's employee record to get the reporting officer's employeeId
+        EmployeeDepartmentMaster creatorEmployee = employeeDepartmentMasterRepository
+                .findByEmployeeId(creatorUser.getEmployeeId())
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve reporting officer: Employee record not found for employeeId=" +
+                        creatorUser.getEmployeeId())));
+
+        String reportingOfficerEmpId = creatorEmployee.getReportingOfficerId();
+        if (reportingOfficerEmpId == null || reportingOfficerEmpId.trim().isEmpty()) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve reporting officer: No reporting officer assigned to employee " +
+                    creatorEmployee.getEmployeeName() + " (" + creatorEmployee.getEmployeeId() + ")."));
+        }
+
+        // Step 3: Find the reporting officer's employee record (for name)
+        EmployeeDepartmentMaster reportingOfficerEmployee = employeeDepartmentMasterRepository
+                .findByEmployeeId(reportingOfficerEmpId)
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve reporting officer: Employee record not found for reporting officer employeeId=" +
+                        reportingOfficerEmpId)));
+
+        // Step 4: Find the reporting officer's user account
+        UserMaster reportingOfficerUser = userMasterRepository.findByEmployeeId(reportingOfficerEmpId)
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve reporting officer: No user account found for reporting officer " +
+                        reportingOfficerEmployee.getEmployeeName() + " (" + reportingOfficerEmpId + "). " +
+                        "Please create a user account for this employee.")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", reportingOfficerUser.getUserId());
+        result.put("employeeId", reportingOfficerEmpId);
+        result.put("employeeName", reportingOfficerEmployee.getEmployeeName());
+
+        System.out.println("✅ Resolved reporting officer for creator userId=" + creatorUserId +
+                " → " + reportingOfficerEmployee.getEmployeeName() + " (userId=" + reportingOfficerUser.getUserId() + ")");
+
+        return result;
+    }
+
+    /**
+     * Checks if the given role name represents a Project Head approver type.
+     */
+    private boolean isProjectHeadRole(String roleName) {
+        return roleName != null && roleName.trim().equalsIgnoreCase("Project Head");
+    }
+
+    /**
+     * Resolves the project head's user ID for the given indent request.
+     * Flow: requestId -> IndentCreation.projectCode -> ProjectMaster.projectHead (employeeId) -> UserMaster.userId
+     * Returns a map with keys: userId (Integer), employeeId (String), employeeName (String)
+     * Throws BusinessException if the project head or their user account cannot be found.
+     */
+    private Map<String, Object> resolveProjectHead(String requestId) {
+        // Step 1: Find the indent to get the project code
+        IndentCreation indent = indentCreationRepository.findByIndentId(requestId);
+        if (indent == null) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve project head: Indent not found for requestId=" + requestId));
+        }
+
+        if (indent.getProjectCode() == null || indent.getProjectCode().trim().isEmpty()) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve project head: Indent " + requestId + " is not associated with any project."));
+        }
+
+        // Step 2: Find the project master to get the project head's employee ID
+        ProjectMaster project = projectMasterRepository.findByProjectCode(indent.getProjectCode())
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve project head: Project not found for projectCode=" + indent.getProjectCode())));
+
+        String projectHeadEmpId = project.getProjectHead();
+        if (projectHeadEmpId == null || projectHeadEmpId.trim().isEmpty()) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve project head: No project head assigned to project " +
+                    project.getProjectNameDescription() + " (" + project.getProjectCode() + ")."));
+        }
+
+        // Step 3: Find the project head's employee record (for name)
+        String projectHeadName = project.getProjectHeadName();
+        if (projectHeadName == null || projectHeadName.trim().isEmpty()) {
+            // Fallback: look up from employee table
+            EmployeeDepartmentMaster projectHeadEmployee = employeeDepartmentMasterRepository
+                    .findByEmployeeId(projectHeadEmpId)
+                    .orElse(null);
+            if (projectHeadEmployee != null) {
+                projectHeadName = projectHeadEmployee.getEmployeeName();
+            } else {
+                projectHeadName = projectHeadEmpId;
+            }
+        }
+
+        // Step 4: Find the project head's user account
+        UserMaster projectHeadUser = userMasterRepository.findByEmployeeId(projectHeadEmpId)
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve project head: No user account found for project head " +
+                        project.getProjectHeadName() + " (" + projectHeadEmpId + "). " +
+                        "Please create a user account for this employee.")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", projectHeadUser.getUserId());
+        result.put("employeeId", projectHeadEmpId);
+        result.put("employeeName", projectHeadName);
+
+        System.out.println("Resolved project head for requestId=" + requestId +
+                " → " + projectHeadName + " (userId=" + projectHeadUser.getUserId() + ")");
+
+        return result;
+    }
+
+    /**
+     * Checks if the given role name is a location-based role (Professor In Charge or Engineer In Charge).
+     * These roles are resolved based on the indent's consignee location matching the employee's location.
+     */
+    private boolean isLocationBasedRole(String roleName) {
+        if (roleName == null) return false;
+        String trimmed = roleName.trim().toLowerCase();
+        return trimmed.equals("professor in charge") || trimmed.equals("engineer in charge");
+    }
+
+    /**
+     * Resolves the location-based approver (Professor In Charge or Engineer In Charge) for the given indent.
+     * Flow: requestId -> IndentCreation.consignesLocation -> find User with matching role AND employee location
+     * Returns a map with keys: userId (Integer), employeeId (String), employeeName (String)
+     * Throws BusinessException if no matching user is found.
+     */
+    private Map<String, Object> resolveLocationBasedApprover(String requestId, String roleName) {
+        // Step 1: Find the indent to get the consignee location
+        IndentCreation indent = indentCreationRepository.findByIndentId(requestId);
+        if (indent == null) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve " + roleName + ": Indent not found for requestId=" + requestId));
+        }
+
+        String location = indent.getConsignesLocation();
+        if (location == null || location.trim().isEmpty()) {
+            throw new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                    AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                    "Cannot resolve " + roleName + ": Indent " + requestId + " has no consignee location set."));
+        }
+
+        // Step 2: Find user with the given role whose employee is at the same location
+        UserMaster matchingUser = userMasterRepository.findByRoleNameAndEmployeeLocation(roleName, location)
+                .orElseThrow(() -> new BusinessException(new ErrorDetails(AppConstant.USER_INVALID_INPUT,
+                        AppConstant.ERROR_TYPE_CODE_VALIDATION, AppConstant.ERROR_TYPE_VALIDATION,
+                        "Cannot resolve " + roleName + ": No user with role '" + roleName +
+                        "' found at location '" + location + "'. " +
+                        "Please ensure an employee at this location has a user account with the '" + roleName + "' role.")));
+
+        // Step 3: Get the employee name for display
+        String employeeName = roleName;
+        if (matchingUser.getEmployeeId() != null) {
+            EmployeeDepartmentMaster employee = employeeDepartmentMasterRepository
+                    .findByEmployeeId(matchingUser.getEmployeeId())
+                    .orElse(null);
+            if (employee != null) {
+                employeeName = employee.getEmployeeName();
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", matchingUser.getUserId());
+        result.put("employeeId", matchingUser.getEmployeeId());
+        result.put("employeeName", employeeName);
+
+        System.out.println("Resolved " + roleName + " for requestId=" + requestId +
+                " (location=" + location + ") → " + employeeName + " (userId=" + matchingUser.getUserId() + ")");
+
+        return result;
+    }
+
+    /**
      * BRANCH-BASED WORKFLOW INITIATION
      * Matches workflow branch based on conditions and routes to first approver
      */
@@ -338,9 +569,30 @@ public class WorkflowServiceImpl implements WorkflowService {
             // Build conditions based on workflow type
             Map<String, Object> conditions = buildConditionsForWorkflow(workflowDto.getWorkflowName(), requestId);
 
+            // Resolve indentorDepartment BEFORE branch matching so department-filtered branches work correctly.
+            // Without this, branches with "indentorDepartment" conditions (e.g. B46 for Tech dept)
+            // would never match because the dept is null at the time findMatchingBranch runs.
+            String indentorDepartment = (String) conditions.get("indentorDepartment");
+            if ((indentorDepartment == null || indentorDepartment.trim().isEmpty()) && createdBy != null) {
+                try {
+                    com.astro.entity.UserMaster creatorUser = userMasterRepository.findByUserId(createdBy);
+                    if (creatorUser != null && creatorUser.getEmployeeId() != null) {
+                        employeeDepartmentMasterRepository.findByEmployeeId(creatorUser.getEmployeeId())
+                                .ifPresent(emp -> {
+                                    conditions.put("indentorDepartment", emp.getDepartmentName());
+                                    System.out.println("✅ Resolved indentorDepartment (pre-branch-match fallback): "
+                                            + emp.getDepartmentName());
+                                });
+                        indentorDepartment = (String) conditions.get("indentorDepartment");
+                    }
+                } catch (Exception e) {
+                    System.err.println("⚠️ Could not resolve indentorDepartment fallback: " + e.getMessage());
+                }
+            }
+
             System.out.println("📋 Conditions: " + conditions);
 
-            // Find matching branch
+            // Find matching branch (now with resolved department info)
             com.astro.entity.AdminPanel.WorkflowBranchMaster matchedBranch =
                 branchWorkflowService.findMatchingBranch(workflowDto.getWorkflowId(), conditions);
 
@@ -349,9 +601,15 @@ public class WorkflowServiceImpl implements WorkflowService {
                 return null;
             }
 
-            // Get first approver for this branch
+            Object totalAmountObj = conditions.get("totalAmount");
+            java.math.BigDecimal totalAmount = totalAmountObj != null
+                    ? new java.math.BigDecimal(totalAmountObj.toString())
+                    : java.math.BigDecimal.ZERO;
+
             com.astro.entity.AdminPanel.ApproverMaster firstApprover =
-                branchWorkflowService.getFirstApprover(matchedBranch.getBranchId());
+                (indentorDepartment != null && !indentorDepartment.trim().isEmpty())
+                    ? branchWorkflowService.getFirstApproverForDepartment(matchedBranch.getBranchId(), indentorDepartment, totalAmount)
+                    : branchWorkflowService.getFirstApprover(matchedBranch.getBranchId());
 
             if (firstApprover == null) {
                 System.out.println("⚠️ No approvers configured for branch " + matchedBranch.getBranchCode());
@@ -367,7 +625,16 @@ public class WorkflowServiceImpl implements WorkflowService {
             transition.setCreatedDate(new Date());
             transition.setStatus(AppConstant.CREATED_TYPE);
             transition.setAction(AppConstant.CREATED_TYPE);
-            transition.setCurrentRole("Indent Creator");
+            // transition.setCurrentRole("Indent Creator");
+            // updated by abhinav
+            if (workflowDto.getWorkflowName().toUpperCase().contains("TENDER")) {
+                transition.setCurrentRole("Tender Creator");
+            } else if (workflowDto.getWorkflowName().toUpperCase().contains("INDENT")) {
+                transition.setCurrentRole("Indent Creator");
+            } else {
+                transition.setCurrentRole("Request Creator");
+            }
+            // updated by abhinav end here
             transition.setNextRole(firstApprover.getRoleName());
             transition.setNextAction(AppConstant.PENDING_TYPE);
             transition.setTransitionOrder(1);
@@ -380,6 +647,34 @@ public class WorkflowServiceImpl implements WorkflowService {
             transition.setApprovalLevel(firstApprover.getApprovalLevel());
             transition.setApprovalSequence(firstApprover.getApprovalSequence());
 
+            // Reporting Officer: resolve and assign to specific user
+            if (isReportingOfficerRole(firstApprover.getRoleName())) {
+                Map<String, Object> roInfo = resolveReportingOfficer(createdBy);
+                transition.setAssignedToUserId((Integer) roInfo.get("userId"));
+                transition.setAssignedToEmployeeId((String) roInfo.get("employeeId"));
+                System.out.println("Reporting Officer assigned: " + roInfo.get("employeeName") +
+                                 " (userId=" + roInfo.get("userId") + ")");
+            }
+
+            // Project Head: resolve and assign to specific project head user
+            if (isProjectHeadRole(firstApprover.getRoleName())) {
+                Map<String, Object> phInfo = resolveProjectHead(requestId);
+                transition.setAssignedToUserId((Integer) phInfo.get("userId"));
+                transition.setAssignedToEmployeeId((String) phInfo.get("employeeId"));
+                System.out.println("Project Head assigned: " + phInfo.get("employeeName") +
+                                 " (userId=" + phInfo.get("userId") + ")");
+            }
+
+            // Location-based roles (Professor In Charge / Engineer In Charge):
+            // resolve by matching consignee location with employee location
+            if (isLocationBasedRole(firstApprover.getRoleName())) {
+                Map<String, Object> locInfo = resolveLocationBasedApprover(requestId, firstApprover.getRoleName());
+                transition.setAssignedToUserId((Integer) locInfo.get("userId"));
+                transition.setAssignedToEmployeeId((String) locInfo.get("employeeId"));
+                System.out.println(firstApprover.getRoleName() + " assigned: " + locInfo.get("employeeName") +
+                                 " (userId=" + locInfo.get("userId") + ")");
+            }
+
             System.out.println("✅ Workflow initiated with branch: " + matchedBranch.getBranchCode() +
                              " (ID: " + matchedBranch.getBranchId() + ")" +
                              ", First approver: " + firstApprover.getRoleName() +
@@ -388,6 +683,9 @@ public class WorkflowServiceImpl implements WorkflowService {
 
             return transition;
 
+        } catch (BusinessException e) {
+            // Re-throw business exceptions (e.g., reporting officer not found)
+            throw e;
         } catch (Exception e) {
             System.err.println("❌ Error in branch-based workflow initiation: " + e.getMessage());
             e.printStackTrace();
@@ -409,13 +707,13 @@ public class WorkflowServiceImpl implements WorkflowService {
         return new HashMap<>();
     }
 
-    private void validateWorkflowTransition(String requestId, Integer createdBy, Integer workflowId) {
-        WorkflowTransition workflowTransition = workflowTransitionRepository.findByWorkflowIdAndCreatedByAndRequestId(workflowId, createdBy, requestId);
-        if (Objects.nonNull(workflowTransition)) {
-            throw new InvalidInputException(new ErrorDetails(AppConstant.WORKFLOW_ALREADY_EXISTS, AppConstant.ERROR_TYPE_CODE_VALIDATION,
-                    AppConstant.ERROR_TYPE_VALIDATION, "Workflow with same request id and created by already exists."));
-        }
-    }
+    // private void validateWorkflowTransition(String requestId, Integer createdBy, Integer workflowId) {
+    //     WorkflowTransition workflowTransition = workflowTransitionRepository.findByWorkflowIdAndCreatedByAndRequestId(workflowId, createdBy, requestId);
+    //     if (Objects.nonNull(workflowTransition)) {
+    //         throw new InvalidInputException(new ErrorDetails(AppConstant.WORKFLOW_ALREADY_EXISTS, AppConstant.ERROR_TYPE_CODE_VALIDATION,
+    //                 AppConstant.ERROR_TYPE_VALIDATION, "Workflow with same request id and created by already exists."));
+    //     }
+    // }
 
     @Override
     public List<WorkflowTransitionDto> workflowTransitionHistory(String requestId) {
@@ -449,9 +747,49 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     public List<WorkflowTransitionDto> allPendingWorkflowTransition(String roleName) {
+        return allPendingWorkflowTransition(roleName, null);
+    }
+
+    @Override
+    public List<WorkflowTransitionDto> allPendingWorkflowTransition(String roleName, Integer userId) {
         List<WorkflowTransitionDto> workflowTransitionDtoList = new ArrayList<>();
 
-        List<WorkflowTransition> workflowTransitionList = workflowTransitionRepository.findByNextActionAndNextRole(AppConstant.PENDING_TYPE, roleName);
+        List<WorkflowTransition> workflowTransitionList;
+        if (userId != null) {
+            workflowTransitionList = workflowTransitionRepository.findPendingByRoleAndOptionalUser(AppConstant.PENDING_TYPE, roleName, userId);
+        } else {
+            workflowTransitionList = workflowTransitionRepository.findByNextActionAndNextRole(AppConstant.PENDING_TYPE, roleName);
+        }
+
+        // Filter by user's employee location against branch location condition
+        if (userId != null && workflowTransitionList != null && !workflowTransitionList.isEmpty()) {
+            UserMaster transUser = userMasterRepository.findByUserId(userId);
+            if (transUser != null && transUser.getEmployeeId() != null) {
+                EmployeeDepartmentMaster transEmp = employeeDepartmentMasterRepository.findByEmployeeId(transUser.getEmployeeId()).orElse(null);
+                if (transEmp != null && transEmp.getLocation() != null) {
+                    String userLocation = transEmp.getLocation().trim().toUpperCase();
+                    workflowTransitionList = workflowTransitionList.stream()
+                        .filter(wt -> {
+                            if (wt.getBranchId() == null) return true;
+                            return workflowBranchMasterRepository.findById(wt.getBranchId())
+                                .map(branch -> {
+                                    if (branch.getConditionConfig() == null || branch.getConditionConfig().trim().isEmpty()) return true;
+                                    try {
+                                        Map<String, Object> config = objectMapper.readValue(branch.getConditionConfig(), new TypeReference<Map<String, Object>>() {});
+                                        if (!config.containsKey("location")) return true;
+                                        String branchLocation = String.valueOf(config.get("location")).trim().toUpperCase();
+                                        return branchLocation.equals(userLocation);
+                                    } catch (Exception e) {
+                                        return true;
+                                    }
+                                })
+                                .orElse(true);
+                        })
+                        .collect(Collectors.toList());
+                }
+            }
+        }
+
         if (Objects.nonNull(workflowTransitionList) && !workflowTransitionList.isEmpty()) {
             workflowTransitionDtoList = workflowTransitionList.stream().sorted(Comparator.comparing(WorkflowTransition::getRequestId).thenComparing(WorkflowTransition::getCreatedDate)).map(e -> {
                 return mapWorkflowTransitionDto(e);
@@ -620,6 +958,14 @@ public class WorkflowServiceImpl implements WorkflowService {
             }
         }
 
+        // Reporting Officer assignment fields
+        workflowTransitionDto.setAssignedToUserId(workflowTransition.getAssignedToUserId());
+        workflowTransitionDto.setAssignedToEmployeeId(workflowTransition.getAssignedToEmployeeId());
+        if (workflowTransition.getAssignedToEmployeeId() != null) {
+            employeeDepartmentMasterRepository.findByEmployeeId(workflowTransition.getAssignedToEmployeeId())
+                    .ifPresent(emp -> workflowTransitionDto.setAssignedToEmployeeName(emp.getEmployeeName()));
+        }
+
         return workflowTransitionDto;
     }
 
@@ -711,7 +1057,10 @@ public class WorkflowServiceImpl implements WorkflowService {
                     }*/
                     if(wt.getWorkflowName().equalsIgnoreCase("PO Workflow") && (wt.getStatus().equalsIgnoreCase("In-progress") || wt.getStatus().equalsIgnoreCase("Completed"))){
                         PoFormateDto poData = purchaseOrderService.getPoFormatDetails(wt.getRequestId());
-                        String purchaseDeptMail ="kudaykiran.9949@gmail.com";  //change. get the purchase dept mail from db
+                        // String purchaseDeptMail ="kudaykiran.9949@gmail.com";  //change. get the purchase dept mail from db
+                        //updated by abhinav
+                        String purchaseDeptMail = userMasterRepository
+                                .findEmailByRoleName("Purchase Dept");
                         tenderEmailService.handlePoApproverEmail(poData, purchaseDeptMail);
                     }
                     if ("Tender Approver".equals(wt.getCurrentRole())) {
@@ -1016,7 +1365,19 @@ public class WorkflowServiceImpl implements WorkflowService {
                 nextWorkflowTransition.setNextRole(latestWorkflowTransition.getNextRole());
             }*/
 
-            nextWorkflowTransition.setNextRole(transitionActionReqDto.getAssignmentRole());
+            // nextWorkflowTransition.setNextRole(transitionActionReqDto.getAssignmentRole());
+            // updated by abhinav
+            String assignmentRole = transitionActionReqDto.getAssignmentRole();
+
+            if ("Request Creator".equalsIgnoreCase(assignmentRole)
+                    && currentWorkflowTransition.getWorkflowName().toUpperCase().contains("PO")) {
+
+                nextWorkflowTransition.setNextRole("PO Creator");
+
+            } else {
+                nextWorkflowTransition.setNextRole(assignmentRole);
+            }
+            // updated by abhinav ends
             nextWorkflowTransition.setWorkflowSequence(currentWorkflowTransition.getWorkflowSequence() + 1);
 
             workflowTransitionRepository.save(nextWorkflowTransition);
@@ -1172,7 +1533,7 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     /**
      * BRANCH-BASED APPROVAL TRANSITION
-     * Routes to next approver in the sequential approval chain
+     * Routes to next approver in the sequential approval chain with limit checks and escalation
      */
     private WorkflowTransition approveBranchBasedTransition(WorkflowTransition currentWorkflowTransition, TransitionActionReqDto transitionActionReqDto) {
         // Mark current transition as completed
@@ -1183,12 +1544,99 @@ public class WorkflowServiceImpl implements WorkflowService {
                          " after Level: " + currentWorkflowTransition.getApprovalLevel() +
                          ", Seq: " + currentWorkflowTransition.getApprovalSequence());
 
-        // Get next approver from branch configuration
-        com.astro.entity.AdminPanel.ApproverMaster nextApprover = branchWorkflowService.getNextApprover(
+        // Get indent details for limit check
+        // added by abhinav start
+        String requestId = currentWorkflowTransition.getRequestId();
+        com.astro.entity.ProcurementModule.IndentCreation indent = null;
+        BigDecimal indentValue = BigDecimal.ZERO;
+        String departmentName = null;
+        String category = null;
+        String location = null;
+
+        // if (requestId != null && requestId.startsWith("IND")) {
+        //     indent = indentCreationRepository.findById(requestId).orElse(null);
+        //     if (indent != null) {
+        //         indentValue = indent.getTotalIntentValue() != null ? indent.getTotalIntentValue() : BigDecimal.ZERO;
+        //         departmentName = indent.getIndentorDepartment();
+        //         category = indent.getMaterialCategoryType();
+        //         location = indent.getConsignesLocation();
+        //     }
+        // }
+        // updated indent and tender workflow
+        String workflowName = currentWorkflowTransition.getWorkflowName();
+
+        if (workflowName.toUpperCase().contains("INDENT")) {
+
+            indent = indentCreationRepository.findById(requestId).orElse(null);
+
+            if (indent != null) {
+                indentValue = indent.getTotalIntentValue();
+                departmentName = indent.getIndentorDepartment();
+                category = indent.getMaterialCategoryType();
+                location = indent.getConsignesLocation();
+            }
+
+        } else if (workflowName.toUpperCase().contains("TENDER")) {
+
+            TenderRequest tender = tenderRequestRepository.findById(requestId).orElse(null);
+
+            if (tender != null) {
+                indentValue = tender.getTotalTenderValue();
+                location = tender.getConsignes();
+                category = tender.getModeOfProcurement();   // optional
+                departmentName = tender.getProjectName();  // if branch uses project as department
+            }
+        } else if (workflowName.toUpperCase().contains("PO")) {
+
+            PurchaseOrder po = purchaseOrderRepository.findById(requestId).orElse(null);
+
+            if (po != null) {
+                indentValue = po.getTotalValueOfPo();
+                departmentName = po.getProjectName();
+                location = po.getConsignesAddress();
+                // category = po.getMaterialCategoryType();
+            }
+        }
+
+        // Get next approver with limit check (skips approvers if amount is within limit)
+        com.astro.entity.AdminPanel.ApproverMaster nextApprover = branchWorkflowService.getNextApproverWithLimitCheck(
             currentWorkflowTransition.getBranchId(),
             currentWorkflowTransition.getApprovalLevel(),
-            currentWorkflowTransition.getApprovalSequence()
+            currentWorkflowTransition.getApprovalSequence(),
+            indentValue,
+            departmentName,
+            category,
+            location
         );
+
+        // Check if escalation is required based on current approver's limits
+        if (nextApprover != null) {
+            com.astro.dto.workflow.EscalationCheckResultDTO escalationResult =
+                branchWorkflowService.checkEscalationRequired(
+                    nextApprover.getRoleName(),
+                    indentValue,
+                    category,
+                    departmentName,
+                    location
+                );
+
+            if (escalationResult != null && escalationResult.isEscalationRequired()) {
+                // Escalate to Director
+                System.out.println("⚠️ ESCALATION REQUIRED: " + escalationResult.getReason());
+                System.out.println("   Escalating to: " + escalationResult.getEscalateTo());
+
+                // Update indent with escalation info
+                if (indent != null) {
+                    indent.setEscalatedToDirector(true);
+                    indent.setEscalationReason(escalationResult.getReason());
+                    indentCreationRepository.save(indent);
+                }
+
+                // Create escalation transition
+                return createEscalationTransition(currentWorkflowTransition, transitionActionReqDto,
+                        escalationResult.getEscalateTo(), escalationResult.getReason());
+            }
+        }
 
         // Create new workflow transition
         WorkflowTransition nextWorkflowTransition = new WorkflowTransition();
@@ -1216,6 +1664,49 @@ public class WorkflowServiceImpl implements WorkflowService {
             nextWorkflowTransition.setApprovalLevel(nextApprover.getApprovalLevel());
             nextWorkflowTransition.setApprovalSequence(nextApprover.getApprovalSequence());
 
+            // Reporting Officer: resolve and assign to specific user
+            if (isReportingOfficerRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> roInfo = resolveReportingOfficer(currentWorkflowTransition.getCreatedBy());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) roInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) roInfo.get("employeeId"));
+                    System.out.println("Reporting Officer assigned: " + roInfo.get("employeeName") +
+                                     " (userId=" + roInfo.get("userId") + ")");
+                } catch (BusinessException e) {
+                    System.err.println("Could not resolve reporting officer: " + e.getMessage());
+                    throw e;
+                }
+            }
+
+            // Project Head: resolve and assign to specific project head user
+            if (isProjectHeadRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> phInfo = resolveProjectHead(currentWorkflowTransition.getRequestId());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) phInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) phInfo.get("employeeId"));
+                    System.out.println("Project Head assigned: " + phInfo.get("employeeName") +
+                                     " (userId=" + phInfo.get("userId") + ")");
+                } catch (BusinessException e) {
+                    System.err.println("Could not resolve project head: " + e.getMessage());
+                    throw e;
+                }
+            }
+
+            // Location-based roles (Professor In Charge / Engineer In Charge)
+            if (isLocationBasedRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> locInfo = resolveLocationBasedApprover(
+                            currentWorkflowTransition.getRequestId(), nextApprover.getRoleName());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) locInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) locInfo.get("employeeId"));
+                    System.out.println(nextApprover.getRoleName() + " assigned: " + locInfo.get("employeeName") +
+                                     " (userId=" + locInfo.get("userId") + ")");
+                } catch (BusinessException e) {
+                    System.err.println("Could not resolve " + nextApprover.getRoleName() + ": " + e.getMessage());
+                    throw e;
+                }
+            }
+
             System.out.println("✅ Approved by " + currentWorkflowTransition.getNextRole() +
                              " → Routing to " + nextApprover.getRoleName() +
                              " (Branch: " + currentWorkflowTransition.getBranchId() +
@@ -1234,6 +1725,183 @@ public class WorkflowServiceImpl implements WorkflowService {
 
         workflowTransitionRepository.save(nextWorkflowTransition);
         return nextWorkflowTransition;
+    }
+
+    /**
+     * Create an escalation transition to Director
+     */
+    private WorkflowTransition createEscalationTransition(
+            WorkflowTransition currentWorkflowTransition,
+            TransitionActionReqDto transitionActionReqDto,
+            String escalateTo,
+            String escalationReason
+    ) {
+        WorkflowTransition escalationTransition = new WorkflowTransition();
+        escalationTransition.setWorkflowId(currentWorkflowTransition.getWorkflowId());
+        escalationTransition.setWorkflowName(currentWorkflowTransition.getWorkflowName());
+        escalationTransition.setRequestId(currentWorkflowTransition.getRequestId());
+        escalationTransition.setCreatedDate(currentWorkflowTransition.getCreatedDate());
+        escalationTransition.setCreatedBy(currentWorkflowTransition.getCreatedBy());
+        escalationTransition.setModifiedBy(transitionActionReqDto.getActionBy());
+        escalationTransition.setModificationDate(new Date());
+        escalationTransition.setAction("Escalated");
+        escalationTransition.setRemarks("ESCALATION: " + escalationReason);
+        escalationTransition.setCurrentRole(currentWorkflowTransition.getNextRole());
+        escalationTransition.setNextRole(escalateTo);
+        escalationTransition.setWorkflowSequence(currentWorkflowTransition.getWorkflowSequence() + 1);
+        escalationTransition.setBranchId(currentWorkflowTransition.getBranchId());
+        escalationTransition.setTransitionOrder(currentWorkflowTransition.getTransitionOrder() + 1);
+        escalationTransition.setTransitionSubOrder(1);
+        escalationTransition.setStatus(AppConstant.IN_PROGRESS_TYPE);
+        escalationTransition.setNextAction(AppConstant.PENDING_TYPE);
+
+        System.out.println("⚠️ ESCALATION: " + currentWorkflowTransition.getNextRole() +
+                         " → " + escalateTo +
+                         " | Reason: " + escalationReason);
+
+        workflowTransitionRepository.save(escalationTransition);
+        return escalationTransition;
+    }
+
+    @Override
+    @Transactional
+    public WorkflowTransitionDto performAutoApproval(WorkflowTransition pendingTransition, Integer autoApproveHours) {
+        if (!"Pending".equals(pendingTransition.getNextAction())) {
+            return null;
+        }
+
+        pendingTransition.setNextAction(AppConstant.COMPLETED_TYPE);
+        workflowTransitionRepository.save(pendingTransition);
+
+        String requestId = pendingTransition.getRequestId();
+        com.astro.entity.ProcurementModule.IndentCreation indent = null;
+        BigDecimal indentValue = BigDecimal.ZERO;
+        String departmentName = null;
+        String category = null;
+        String location = null;
+
+        if (requestId != null && requestId.startsWith("IND")) {
+            indent = indentCreationRepository.findById(requestId).orElse(null);
+            if (indent != null) {
+                indentValue = indent.getTotalIntentValue() != null ? indent.getTotalIntentValue() : BigDecimal.ZERO;
+                departmentName = indent.getIndentorDepartment();
+                category = indent.getMaterialCategoryType();
+                location = indent.getConsignesLocation();
+            }
+        }
+
+        com.astro.entity.AdminPanel.ApproverMaster nextApprover = branchWorkflowService.getNextApproverWithLimitCheck(
+            pendingTransition.getBranchId(),
+            pendingTransition.getApprovalLevel(),
+            pendingTransition.getApprovalSequence(),
+            indentValue,
+            departmentName,
+            category,
+            location
+        );
+
+        if (nextApprover != null) {
+            com.astro.dto.workflow.EscalationCheckResultDTO escalationResult =
+                branchWorkflowService.checkEscalationRequired(
+                    nextApprover.getRoleName(),
+                    indentValue,
+                    category,
+                    departmentName,
+                    location
+                );
+
+            if (escalationResult != null && escalationResult.isEscalationRequired()) {
+                if (indent != null) {
+                    indent.setEscalatedToDirector(true);
+                    indent.setEscalationReason(escalationResult.getReason());
+                    indentCreationRepository.save(indent);
+                }
+
+                TransitionActionReqDto autoActionDto = new TransitionActionReqDto();
+                autoActionDto.setAction("Auto-Approved");
+                autoActionDto.setRemarks("AUTO-APPROVED: " + pendingTransition.getNextRole() + " did not act within " + autoApproveHours + " hours");
+                autoActionDto.setActionBy(null);
+
+                WorkflowTransition escalated = createEscalationTransition(pendingTransition, autoActionDto,
+                        escalationResult.getEscalateTo(), escalationResult.getReason());
+                return mapToWorkflowTransitionDto(escalated);
+            }
+        }
+
+        WorkflowTransition nextWorkflowTransition = new WorkflowTransition();
+        nextWorkflowTransition.setWorkflowId(pendingTransition.getWorkflowId());
+        nextWorkflowTransition.setWorkflowName(pendingTransition.getWorkflowName());
+        nextWorkflowTransition.setRequestId(pendingTransition.getRequestId());
+        nextWorkflowTransition.setCreatedDate(pendingTransition.getCreatedDate());
+        nextWorkflowTransition.setCreatedBy(pendingTransition.getCreatedBy());
+        nextWorkflowTransition.setModifiedBy(null);
+        nextWorkflowTransition.setModificationDate(new Date());
+        nextWorkflowTransition.setAction("Auto-Approved");
+        nextWorkflowTransition.setRemarks("AUTO-APPROVED: " + pendingTransition.getNextRole() + " did not act within " + autoApproveHours + " hours");
+        nextWorkflowTransition.setCurrentRole(pendingTransition.getNextRole());
+        nextWorkflowTransition.setWorkflowSequence(pendingTransition.getWorkflowSequence() + 1);
+        nextWorkflowTransition.setBranchId(pendingTransition.getBranchId());
+        nextWorkflowTransition.setTransitionOrder(
+            (pendingTransition.getTransitionOrder() != null ? pendingTransition.getTransitionOrder() : 0) + 1
+        );
+        nextWorkflowTransition.setTransitionSubOrder(1);
+
+        if (nextApprover != null) {
+            nextWorkflowTransition.setStatus(AppConstant.IN_PROGRESS_TYPE);
+            nextWorkflowTransition.setNextAction(AppConstant.PENDING_TYPE);
+            nextWorkflowTransition.setNextRole(nextApprover.getRoleName());
+            nextWorkflowTransition.setApproverId(nextApprover.getApproverId());
+            nextWorkflowTransition.setApprovalLevel(nextApprover.getApprovalLevel());
+            nextWorkflowTransition.setApprovalSequence(nextApprover.getApprovalSequence());
+
+            // Reporting Officer: resolve and assign to specific user (auto-approval path)
+            if (isReportingOfficerRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> roInfo = resolveReportingOfficer(pendingTransition.getCreatedBy());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) roInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) roInfo.get("employeeId"));
+                } catch (BusinessException e) {
+                    System.err.println("Auto-approval: Could not resolve reporting officer: " + e.getMessage());
+                }
+            }
+
+            // Project Head: resolve and assign to specific project head user (auto-approval path)
+            if (isProjectHeadRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> phInfo = resolveProjectHead(pendingTransition.getRequestId());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) phInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) phInfo.get("employeeId"));
+                } catch (BusinessException e) {
+                    System.err.println("Auto-approval: Could not resolve project head: " + e.getMessage());
+                }
+            }
+
+            // Location-based roles (Professor In Charge / Engineer In Charge) (auto-approval path)
+            if (isLocationBasedRole(nextApprover.getRoleName())) {
+                try {
+                    Map<String, Object> locInfo = resolveLocationBasedApprover(
+                            pendingTransition.getRequestId(), nextApprover.getRoleName());
+                    nextWorkflowTransition.setAssignedToUserId((Integer) locInfo.get("userId"));
+                    nextWorkflowTransition.setAssignedToEmployeeId((String) locInfo.get("employeeId"));
+                } catch (BusinessException e) {
+                    System.err.println("Auto-approval: Could not resolve " + nextApprover.getRoleName() + ": " + e.getMessage());
+                }
+            }
+        } else {
+            nextWorkflowTransition.setStatus(AppConstant.COMPLETED_TYPE);
+            nextWorkflowTransition.setNextAction(null);
+            nextWorkflowTransition.setNextRole(null);
+
+            if (indent != null) {
+                indent.setCurrentStatus("APPROVED");
+                indent.setCurrentStage("INDENT_APPROVED");
+                indent.setIsEditable(false);
+                indentCreationRepository.save(indent);
+            }
+        }
+
+        workflowTransitionRepository.save(nextWorkflowTransition);
+        return mapToWorkflowTransitionDto(nextWorkflowTransition);
     }
 
     /**
@@ -1358,6 +2026,14 @@ public class WorkflowServiceImpl implements WorkflowService {
         dto.setCurrentRole(nextWorkflowTransition.getCurrentRole());
         dto.setNextRole(nextWorkflowTransition.getNextRole());
         dto.setWorkflowSequence(nextWorkflowTransition.getWorkflowSequence());
+
+        // Reporting Officer assignment fields
+        dto.setAssignedToUserId(nextWorkflowTransition.getAssignedToUserId());
+        dto.setAssignedToEmployeeId(nextWorkflowTransition.getAssignedToEmployeeId());
+        if (nextWorkflowTransition.getAssignedToEmployeeId() != null) {
+            employeeDepartmentMasterRepository.findByEmployeeId(nextWorkflowTransition.getAssignedToEmployeeId())
+                    .ifPresent(emp -> dto.setAssignedToEmployeeName(emp.getEmployeeName()));
+        }
 
         return dto;
     }
@@ -1662,6 +2338,62 @@ public class WorkflowServiceImpl implements WorkflowService {
         return transitionDto;
     }
 
+    //updated  by abhinav starts
+    public List<ApprovedIndentsDto> getApprovedIndents(Integer userId) {
+
+        UserMaster user = userMasterRepository.findByUserId(userId);
+        if (user == null) {
+            return new ArrayList<>();
+        }
+
+        String employeeId = user.getEmployeeId();
+
+        List<IndentAssignment> assignments
+                = indentAssignmentRepository
+                        .findByAssignedToEmployeeIdAndStatus(employeeId, "ACTIVE");
+
+        if (assignments.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> indentIds = assignments.stream()
+                .map(IndentAssignment::getIndentId)
+                .collect(Collectors.toList());
+
+        // Now calling correct method
+        List<ApprovedIndentsDto> approvedIndents = getAllApprovedIndentsInternal();
+
+        return approvedIndents.stream()
+                .filter(dto -> indentIds.contains(dto.getIndentId()))
+                .collect(Collectors.toList());
+    }
+
+    private List<ApprovedIndentsDto> getAllApprovedIndentsInternal() {
+
+        List<String> approvedIndentIds = workflowTransitionRepository.findApprovedIndentRequestIds();
+
+        List<ApprovedIndentsDto> rawResults
+                = indentCreationRepository.findApprovedIndents(approvedIndentIds);
+
+        Map<String, ApprovedIndentsDto> grouped = new LinkedHashMap<>();
+
+        for (ApprovedIndentsDto dto : rawResults) {
+            grouped.computeIfAbsent(dto.getIndentId(), k -> {
+                ApprovedIndentsDto newDto = new ApprovedIndentsDto();
+                newDto.setIndentId(dto.getIndentId());
+                newDto.setProjectName(dto.getProjectName());
+                newDto.setIndentorName(dto.getIndentorName());
+                newDto.setCreatedDate(dto.getCreatedDate());
+                newDto.setMaterialDes(new ArrayList<>());
+                return newDto;
+            }).getMaterialDes().addAll(dto.getMaterialDes());
+        }
+
+        return new ArrayList<>(grouped.values());
+    }
+    // updates by abhinav line ends
+
+    // Old getApprovedIndents() kept for reference
     public List<ApprovedIndentsDto> getApprovedIndents() {
         List<String> approvedIndentIds = workflowTransitionRepository.findApprovedIndentRequestIds();
         System.out.println(approvedIndentIds);
@@ -1892,10 +2624,55 @@ public List<ApprovedIndentsDto> getApprovedIndents() {
 
     @Override
     public List<QueueResponse> allPendingWorkflowTransitionINQueue(String roleName) {
+        return allPendingWorkflowTransitionINQueue(roleName, null);
+    }
+
+    @Override
+    public List<QueueResponse> allPendingWorkflowTransitionINQueue(String roleName, Integer userId) {
         List<QueueResponse> queueResponseList = new ArrayList<>();
 
         // Fetch Workflow Transitions based on role and pending action
-        List<WorkflowTransition> workflowTransitionList = workflowTransitionRepository.findByNextActionAndNextRole(AppConstant.PENDING_TYPE, roleName);
+        List<WorkflowTransition> workflowTransitionList;
+        if (userId != null) {
+            workflowTransitionList = workflowTransitionRepository.findPendingByRoleAndOptionalUser(AppConstant.PENDING_TYPE, roleName, userId);
+        } else {
+            workflowTransitionList = workflowTransitionRepository.findByNextActionAndNextRole(AppConstant.PENDING_TYPE, roleName);
+        }
+
+        // Filter by user's employee location against branch location condition.
+        // Personally-assigned transitions (assignedToUserId != null, e.g. Reporting Officer) are exempt —
+        // the RO is already explicitly assigned and must see the indent regardless of their own location.
+        if (userId != null && workflowTransitionList != null && !workflowTransitionList.isEmpty()) {
+            UserMaster queueUser = userMasterRepository.findByUserId(userId);
+            if (queueUser != null && queueUser.getEmployeeId() != null) {
+                EmployeeDepartmentMaster queueEmp = employeeDepartmentMasterRepository.findByEmployeeId(queueUser.getEmployeeId()).orElse(null);
+                if (queueEmp != null && queueEmp.getLocation() != null) {
+                    String userLocation = queueEmp.getLocation().trim().toUpperCase();
+                    // Global approvers (location = "ALL") see items from every branch location — skip filter
+                    if (!"ALL".equals(userLocation)) {
+                        workflowTransitionList = workflowTransitionList.stream()
+                            .filter(wt -> {
+                                if (wt.getAssignedToUserId() != null) return true;
+                                if (wt.getBranchId() == null) return true;
+                                return workflowBranchMasterRepository.findById(wt.getBranchId())
+                                    .map(branch -> {
+                                        if (branch.getConditionConfig() == null || branch.getConditionConfig().trim().isEmpty()) return true;
+                                        try {
+                                            Map<String, Object> config = objectMapper.readValue(branch.getConditionConfig(), new TypeReference<Map<String, Object>>() {});
+                                            if (!config.containsKey("location")) return true;
+                                            String branchLocation = String.valueOf(config.get("location")).trim().toUpperCase();
+                                            return branchLocation.equals(userLocation);
+                                        } catch (Exception e) {
+                                            return true;
+                                        }
+                                    })
+                                    .orElse(true);
+                            })
+                            .collect(Collectors.toList());
+                    }
+                }
+            }
+        }
 
         if (Objects.nonNull(workflowTransitionList) && !workflowTransitionList.isEmpty()) {
             queueResponseList = workflowTransitionList.stream()
@@ -2003,10 +2780,14 @@ private QueueResponse mapVendorToQueueResponse(VendorRegistrationResponseDTO ven
         queueResponse.setModificationDate(workflowTransition.getModificationDate());
         queueResponse.setCreatedDate(workflowTransition.getCreatedDate());
 
+        // Reporting Officer assignment fields
+        queueResponse.setAssignedToUserId(workflowTransition.getAssignedToUserId());
+        if (workflowTransition.getAssignedToEmployeeId() != null) {
+            employeeDepartmentMasterRepository.findByEmployeeId(workflowTransition.getAssignedToEmployeeId())
+                    .ifPresent(emp -> queueResponse.setAssignedToEmployeeName(emp.getEmployeeName()));
+        }
+
         String requestId = workflowTransition.getRequestId();
-
-
-        // boolean isMatched = false;
 
         if (requestId.startsWith("IND")) {
             // Fetch data from IndentCreation entity

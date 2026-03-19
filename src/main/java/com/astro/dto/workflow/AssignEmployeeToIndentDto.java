@@ -8,4 +8,5 @@ public class AssignEmployeeToIndentDto {
     private String indentId;
     private String employeeId;
     private String employeeName;
+    private String assignedBy; // added by abhinav
 }

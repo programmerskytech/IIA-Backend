@@ -11,7 +11,18 @@
       "Bash(git config:*)",
       "Bash(git add:*)",
       "Bash(mvn clean package:*)",
-      "Bash(mvn package:*)"
+      "Bash(mvn package:*)",
+      "Bash(mvn compile:*)",
+      "Bash(cd:*)",
+      "Bash(mvnw.cmd compile:*)",
+      "Bash(\"e:\\\\Work 2.0\\\\IIA\\\\Backend-prod\\\\IIA_98_BRANCH_COMPLETE_MATRIX.md\":*)",
+      "Bash(python -c \"import bcrypt; pw = b''Skrossi@81''; hash = bcrypt.hashpw\\(pw, bcrypt.gensalt\\(rounds=10\\)\\); print\\(hash.decode\\(\\)\\)\")",
+      "Bash(python3 -c \"import bcrypt; pw = b''Skrossi@81''; hash = bcrypt.hashpw\\(pw, bcrypt.gensalt\\(rounds=10\\)\\); print\\(hash.decode\\(\\)\\)\")",
+      "Bash(node -e \"const crypto=require\\(''crypto''\\); console.log\\(''node ok''\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(tr ';' '\\\\n')",
+      "Bash(php -r \"echo password_hash\\(''Skrossi@81'', PASSWORD_BCRYPT, [''cost'' => 10]\\);\")",
+      "Bash(htpasswd -bnBC 10 \"\" \"Skrossi@81\")"
     ]
   }
 }

@@ -21,6 +21,7 @@ import com.astro.entity.ProcurementModule.TenderRequest;
 import com.astro.exception.BusinessException;
 import com.astro.exception.ErrorDetails;
 import com.astro.exception.InvalidInputException;
+// added by abhinav
 import com.astro.repository.*;
 import com.astro.repository.ProcurementModule.IndentCreation.IndentCreationRepository;
 import com.astro.repository.ProcurementModule.IndentCreation.MaterialDetailsRepository;
@@ -42,6 +43,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.swagger.models.auth.In;
+
+import com.astro.entity.ProcurementModule.PurchaseOrderHistory; // added by abhinav
 import net.bytebuddy.ClassFileVersion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -102,6 +105,10 @@ public class PurchaseOrderImpl implements PurchaseOrderService {
     private IiaFreightForwarderDetailsRepository iiaFreightForwarderDetailsRepository;
     @Autowired
     private OfficerSignatureRepository officerSignatureRepository;
+
+    // added new by abhinav
+    @Autowired
+    private PurchaseOrderHistoryRepository purchaseOrderHistoryRepository;
 
     @Value("${filePath}")
     private String bp;
@@ -289,6 +296,34 @@ public class PurchaseOrderImpl implements PurchaseOrderService {
                                 AppConstant.ERROR_TYPE_VALIDATION,
                                 "Purchase order not found for the provided asset ID.")
                 ));
+        // added by abhinav starts
+        PurchaseOrderHistory history = new PurchaseOrderHistory();
+
+        history.setPoId(purchaseOrder.getPoId());
+        history.setVersion(purchaseOrder.getPoVersion());
+        history.setModifiedBy(purchaseOrderRequestDTO.getUpdatedBy());
+        history.setModifiedDate(new java.util.Date());
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            history.setSnapshotJson(mapper.writeValueAsString(purchaseOrder));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        purchaseOrderHistoryRepository.save(history);
+
+        // INCREMENT VERSION
+        if (purchaseOrder.getPoVersion() == null) {
+            purchaseOrder.setPoVersion(1);
+        } else {
+            purchaseOrder.setPoVersion(purchaseOrder.getPoVersion() + 1);
+        }
+        //  LOCK CHECK
+        // if (purchaseOrder.getIsLocked() != null && purchaseOrder.getIsLocked()) {
+        //     throw new RuntimeException("PO is locked and cannot be edited.");
+        // }
+        //added by abhinav ends
 
         // Update basic fields
         purchaseOrder.setTenderId(purchaseOrderRequestDTO.getTenderId());
@@ -1404,7 +1439,8 @@ public class PurchaseOrderImpl implements PurchaseOrderService {
         dto.setTenderDate(tr.getCreatedDate() != null ? tr.getCreatedDate().format(dateFormatter) : null);
         dto.setQuotationDate(po.getQuotationDate() != null ? po.getQuotationDate().format(dateFormatter) : null);
 
-        dto.setDeliveryPeriod(String.valueOf(po.getDeliveryPeriod().setScale(0, RoundingMode.HALF_UP)));
+        // dto.setDeliveryPeriod(String.valueOf(po.getDeliveryPeriod().setScale(0, RoundingMode.HALF_UP)));
+        dto.setDeliveryPeriod(po.getDeliveryPeriod()); //updated by abhinav because of String
         List<String> indentIds = indentIdRepository.findTenderWithIndent(tr.getTenderId());
         List<LocalDateTime> createdDates = indentCreationRepository.findCreatedDatesByIndentIds(indentIds);
         String indentIndss = indentIds.stream().collect(Collectors.joining(", "));

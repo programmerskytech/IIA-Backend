@@ -19,7 +19,9 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
     List<WorkflowTransition> findByWorkflowId(Integer workflowId);
     WorkflowTransition findByWorkflowIdAndTransitionOrder(Integer workflowId, Integer order);
     List<WorkflowTransition> findByWorkflowIdOrCreatedByOrRequestIdOrTransitionId(Integer workflowId, Integer createdBy, Integer requestId, Integer nextTransitionId);
-    WorkflowTransition findByWorkflowIdAndCreatedByAndRequestId(Integer workflowId, Integer createdBy, String requestId);
+    // WorkflowTransition findByWorkflowIdAndCreatedByAndRequestId(Integer workflowId, Integer createdBy, String requestId);
+    List<WorkflowTransition> findByWorkflowIdAndCreatedByAndRequestId(
+        Integer workflowId, Integer createdBy, String requestId);  // updated by abhinav
     List<WorkflowTransition> findByWorkflowIdOrCreatedByOrRequestId(Integer workflowId, Integer createdBy, Integer requestId);
     List<WorkflowTransition> findByWorkflowIdAndCurrentRole(Integer workflowId, String roleName);
     List<WorkflowTransition> findByRequestId(String requestId);
@@ -150,16 +152,19 @@ WHERE wt.workflowId = :workflowId
 
     WorkflowTransition findTopByRequestIdOrderByTransitionOrderDescWorkflowTransitionIdDesc(String tenderId);
 
+    // added by abhinav
     @Query("""
-    SELECT wt.createdDate 
+    SELECT wt.createdDate
     FROM WorkflowTransition wt
     WHERE wt.requestId = :requestId
+    AND wt.workflowName = 'PO Workflow'
     AND wt.workflowTransitionId = (
         SELECT MAX(wt2.workflowTransitionId)
         FROM WorkflowTransition wt2
         WHERE wt2.requestId = :requestId
+        AND wt2.workflowName = 'PO Workflow'
     )
-""")
+    """)
     LocalDateTime findLastCreatedDateByRequestId(@Param("requestId") String requestId);
 
     @Query("""
@@ -196,7 +201,24 @@ ORDER BY wt.requestId, wt.createdDate
     );
 
 
-    @Query("SELECT new com.astro.dto.workflow.ProcurementDtos.pendingRecordsDto(w.status, w.requestId, w.workflowName) FROM WorkflowTransition w WHERE w.nextRole = :roleName")
+    // @Query("SELECT new com.astro.dto.workflow.ProcurementDtos.pendingRecordsDto(w.status, w.requestId, w.workflowName) FROM WorkflowTransition w WHERE w.nextRole = :roleName")
+    // List<pendingRecordsDto> findPendingByNextRole(@Param("roleName") String roleName);
+    // updated by abhinav to fetch only the latest transition for each requestId where nextRole matches the given roleName and status is not in Completed or Canceled
+    @Query("""
+    SELECT new com.astro.dto.workflow.ProcurementDtos.pendingRecordsDto(
+        w.status,
+        w.requestId,
+        w.workflowName
+    )
+    FROM WorkflowTransition w
+    WHERE w.nextRole = :roleName
+    AND w.workflowTransitionId = (
+        SELECT MAX(w2.workflowTransitionId)
+        FROM WorkflowTransition w2
+        WHERE w2.requestId = w.requestId
+    )
+    """)
+    // end here
     List<pendingRecordsDto> findPendingByNextRole(@Param("roleName") String roleName);
 
     @Query("SELECT wt.requestId FROM WorkflowTransition wt " +
@@ -204,5 +226,23 @@ ORDER BY wt.requestId, wt.createdDate
             "AND wt.status = 'Completed' " +
             "AND wt.nextAction IS NULL")
     List<String> findApprovedSoIds();
+
+    @Query("SELECT wt FROM WorkflowTransition wt WHERE wt.branchId IS NOT NULL " +
+           "AND wt.approverId IS NOT NULL AND wt.nextAction = 'Pending' " +
+           "AND wt.status NOT IN ('Completed', 'Canceled')")
+    List<WorkflowTransition> findPendingBranchTransitions();
+
+    // Reporting Officer: find pending transitions assigned to a specific user
+    List<WorkflowTransition> findByNextActionAndNextRoleAndAssignedToUserId(
+            String pendingType, String roleName, Integer assignedToUserId);
+
+    // Reporting Officer: find pending transitions for a role where either unassigned (null) or assigned to specific user
+    @Query("SELECT wt FROM WorkflowTransition wt WHERE wt.nextAction = :pendingType " +
+           "AND wt.nextRole = :roleName " +
+           "AND (wt.assignedToUserId IS NULL OR wt.assignedToUserId = :userId)")
+    List<WorkflowTransition> findPendingByRoleAndOptionalUser(
+            @Param("pendingType") String pendingType,
+            @Param("roleName") String roleName,
+            @Param("userId") Integer userId);
 
 }

@@ -5,6 +5,7 @@ import com.astro.dto.workflow.AssignEmployeeToIndentDto;
 import com.astro.dto.workflow.ProcurementDtos.IndentDto.*;
 import com.astro.dto.workflow.ProcurementDtos.IndentWorkflowStatusDto;
 import com.astro.dto.workflow.ProcurementDtos.TechnoMomReportDTO;
+// added by abhinav
 import com.astro.entity.*;
 import com.astro.entity.ProcurementModule.IndentCreation;
 import com.astro.entity.ProcurementModule.JobDetails;
@@ -12,6 +13,7 @@ import com.astro.entity.ProcurementModule.MaterialDetails;
 import com.astro.exception.BusinessException;
 import com.astro.exception.ErrorDetails;
 import com.astro.exception.InvalidInputException;
+//added by abhinav
 import com.astro.repository.*;
 import com.astro.repository.ProcurementModule.IndentCreation.IndentCreationRepository;
 import com.astro.repository.ProcurementModule.IndentCreation.IndentMaterialMappingRepository;
@@ -90,6 +92,10 @@ public class IndentCreationServiceImpl implements IndentCreationService {
 
     @Autowired
     private com.astro.repository.ProcurementModule.PurchaseOrder.PurchaseOrderRepository purchaseOrderRepository;
+
+        // added by abhinav
+    @Autowired
+    private IndentAssignmentRepository indentAssignmentRepository;
 
     @Value("${filePath}")
     private String bp;
@@ -221,9 +227,32 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setCreatedBy(indentRequestDTO.getCreatedBy());
         indentCreation.setUpdatedBy(indentRequestDTO.getUpdatedBy());
 
+        // Resolve indentor's department from the employee master linked to the creating user.
+        // This is used by the workflow engine for department-based approver routing (Dean/Head SEG).
+        if (indentRequestDTO.getCreatedBy() != null) {
+            try {
+                UserMaster creatingUser = userMasterRepository.findByUserId(indentRequestDTO.getCreatedBy());
+                if (creatingUser != null && creatingUser.getEmployeeId() != null) {
+                    employeeDepartmentMasterRepository.findByEmployeeId(creatingUser.getEmployeeId())
+                            .ifPresent(emp -> {
+                                indentCreation.setIndentorDepartment(emp.getDepartmentName());
+                                System.out.println("✅ indentorDepartment set from employee: "
+                                        + emp.getDepartmentName() + " (empId=" + emp.getEmployeeId() + ")");
+                            });
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Could not resolve indentorDepartment: " + e.getMessage());
+            }
+        }
+
         // Set indent type and material category type on entity
         indentCreation.setIndentType(indentType);
         indentCreation.setMaterialCategoryType(indentRequestDTO.getMaterialCategoryType());
+
+        // Set project-related fields for workflow branch matching
+        indentCreation.setIsUnderProject(indentRequestDTO.getIsUnderProject() != null ? indentRequestDTO.getIsUnderProject() : false);
+        indentCreation.setProjectCode(indentRequestDTO.getProjectCode());
+        indentCreation.setModeOfProcurement(indentRequestDTO.getModeOfProcurement());
 
         // Bug Fix: Initialize new fields for indent tracking
         indentCreation.setIsEditable(true);
@@ -237,6 +266,9 @@ public class IndentCreationServiceImpl implements IndentCreationService {
 
         // Process based on indent type
         if ("material".equalsIgnoreCase(indentType)) {
+
+            // Validate vendor count based on mode of procurement
+            validateVendorCountByModeOfProcurement(indentRequestDTO.getModeOfProcurement(), indentRequestDTO.getMaterialDetails());
 
             // Validate computer item prices for department-specific limits
             if (indentRequestDTO.getEmployeeDepartment() != null && !indentRequestDTO.getEmployeeDepartment().isEmpty()) {
@@ -253,9 +285,16 @@ public class IndentCreationServiceImpl implements IndentCreationService {
                 material.setUom(materialRequest.getUom());
                 material.setModeOfProcurement(materialRequest.getModeOfProcurement());
                 material.setCurrency(materialRequest.getCurrency());
+                material.setConversionRate(materialRequest.getConversionRate()); // added by abhinav
 
-                // Calculate total price
+                // Calculate total price (apply conversion rate for non-INR currencies)
                 BigDecimal totalPrice = materialRequest.getQuantity().multiply(materialRequest.getUnitPrice());
+                // added by abhinav
+                if (materialRequest.getConversionRate() != null
+                        && materialRequest.getCurrency() != null
+                        && !"INR".equalsIgnoreCase(materialRequest.getCurrency())) {
+                    totalPrice = totalPrice.multiply(materialRequest.getConversionRate());
+                }
                 material.setTotalPrice(totalPrice);
                 material.setBudgetCode(materialRequest.getBudgetCode());
                 material.setMaterialCategory(materialRequest.getMaterialCategory());
@@ -404,6 +443,11 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         indentCreation.setIndentType(indentType);
         indentCreation.setMaterialCategoryType(indentRequestDTO.getMaterialCategoryType());
 
+        // Update project-related fields for workflow branch matching
+        indentCreation.setIsUnderProject(indentRequestDTO.getIsUnderProject() != null ? indentRequestDTO.getIsUnderProject() : false);
+        indentCreation.setProjectCode(indentRequestDTO.getProjectCode());
+        indentCreation.setModeOfProcurement(indentRequestDTO.getModeOfProcurement());
+
         // Update indent fields
         indentCreation.setIndentorName(indentRequestDTO.getIndentorName());
         indentCreation.setIndentorMobileNo(indentRequestDTO.getIndentorMobileNo());
@@ -482,6 +526,9 @@ public class IndentCreationServiceImpl implements IndentCreationService {
         // Update details based on indentType
         if ("material".equalsIgnoreCase(indentType)) {
 
+            // Validate vendor count based on mode of procurement
+            validateVendorCountByModeOfProcurement(indentRequestDTO.getModeOfProcurement(), indentRequestDTO.getMaterialDetails());
+
             // Validate computer item prices for department-specific limits
             if (indentRequestDTO.getEmployeeDepartment() != null && !indentRequestDTO.getEmployeeDepartment().isEmpty()) {
                 validateComputerItemPrices(indentRequestDTO.getMaterialDetails(), indentRequestDTO.getEmployeeDepartment());
@@ -503,7 +550,14 @@ public class IndentCreationServiceImpl implements IndentCreationService {
                 material.setUom(materialRequest.getUom());
                 material.setModeOfProcurement(materialRequest.getModeOfProcurement());
                 material.setCurrency(materialRequest.getCurrency());
-                material.setTotalPrice(materialRequest.getQuantity().multiply(materialRequest.getUnitPrice()));
+                material.setConversionRate(materialRequest.getConversionRate());
+                BigDecimal updatedTotalPrice = materialRequest.getQuantity().multiply(materialRequest.getUnitPrice());
+                if (materialRequest.getConversionRate() != null
+                        && materialRequest.getCurrency() != null
+                        && !"INR".equalsIgnoreCase(materialRequest.getCurrency())) {
+                    updatedTotalPrice = updatedTotalPrice.multiply(materialRequest.getConversionRate());
+                }
+                material.setTotalPrice(updatedTotalPrice);
                 material.setBudgetCode(materialRequest.getBudgetCode());
                 material.setMaterialCategory(materialRequest.getMaterialCategory());
                 material.setMaterialSubCategory(materialRequest.getMaterialSubCategory());
@@ -717,6 +771,11 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
     response.setMaterialCategory(materialSubCategory);
     response.setConsignesLocation(indentCreation.getConsignesLocation());
 
+    // Map project-related fields
+    response.setIsUnderProject(indentCreation.getIsUnderProject());
+    response.setProjectCode(indentCreation.getProjectCode());
+    response.setModeOfProcurement(indentCreation.getModeOfProcurement());
+
     // Map material details
     List<MaterialDetailsResponseDTO> materialDetailsResponse = indentCreation.getMaterialDetails().stream().map(material -> {
         MaterialDetailsResponseDTO materialResponse = new MaterialDetailsResponseDTO();
@@ -731,6 +790,7 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
         materialResponse.setMaterialCategory(material.getMaterialCategory());
         materialResponse.setMaterialSubCategory(material.getMaterialSubCategory());
         materialResponse.setCurrency(material.getCurrency());
+        materialResponse.setConversionRate(material.getConversionRate());
 
         List<String> vendorNames = vendorNameRepository.findByMaterialId(material.getId())
                 .stream()
@@ -759,16 +819,91 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
 
     response.setMaterialDetails(materialDetailsResponse);
     
-    // ✅ FIX: Add null check for WorkflowTransition
-    WorkflowTransition wt = workflowTransitionRepository.findTopByRequestIdOrderByWorkflowSequenceDesc(indentId);
-    
-    if (wt != null) {
-        response.setStatus(wt.getStatus());
-        response.setProcessStage(wt.getNextRole());
+    // ✅ FIX: Calculate proper workflow status from transitions
+    List<WorkflowTransition> workflowTransitions = workflowTransitionRepository.findByRequestId(indentId);
+
+    if (workflowTransitions != null && !workflowTransitions.isEmpty()) {
+        // Get the last transition by workflowSequence
+        WorkflowTransition lastTransition = workflowTransitions.stream()
+                .max(Comparator.comparing(wt -> wt.getWorkflowSequence() != null ? wt.getWorkflowSequence() : 0))
+                .orElse(null);
+
+        // FIX: Count ACTUAL approvals completed (where nextAction = "Completed")
+        // When an approver approves, their transition's nextAction is set to "Completed"
+        long approvalsDone = workflowTransitions.stream()
+                .filter(wt -> "Completed".equalsIgnoreCase(wt.getNextAction()))
+                .count();
+
+        // FIX: Workflow is fully approved when the LAST transition has:
+        // - status = "Completed" (final state)
+        // - nextRole is null or empty (no more approvers)
+        // Note: Old transitions keep "In-progress" status even after approval,
+        // only their nextAction changes to "Completed"
+        boolean isFullyApproved = lastTransition != null &&
+                "Completed".equalsIgnoreCase(lastTransition.getStatus()) &&
+                (lastTransition.getNextRole() == null || lastTransition.getNextRole().isEmpty());
+
+        // FIX: Find ACTUALLY pending transition (one with nextAction = "Pending")
+        // Not just any "In-progress" status, as old approved transitions keep that status
+        WorkflowTransition pendingTransition = workflowTransitions.stream()
+                .filter(wt -> "Pending".equalsIgnoreCase(wt.getNextAction()))
+                .findFirst()
+                .orElse(null);
+
+        // FIX: Calculate total approval levels correctly
+        int totalLevels;
+        if (isFullyApproved) {
+            // When fully approved, total levels = approvals done
+            totalLevels = (int) approvalsDone;
+        } else {
+            // Count transitions that have nextRole set (these are actual approval steps)
+            totalLevels = (int) workflowTransitions.stream()
+                    .filter(wt -> wt.getNextRole() != null && !wt.getNextRole().isEmpty())
+                    .count();
+        }
+
+        response.setStatus(lastTransition != null ? lastTransition.getStatus() : "Pending");
+        response.setProcessStage(lastTransition != null ? lastTransition.getNextRole() : null);
+        response.setApprovalLevel((int) approvalsDone);
+        response.setTotalApprovalLevels(totalLevels);
+        response.setIsFullyApproved(isFullyApproved);
+
+        if (pendingTransition != null && !isFullyApproved) {
+            response.setCurrentApprovalLevel(pendingTransition.getApprovalLevel());
+            response.setPendingWith(pendingTransition.getNextRole());
+        } else {
+            response.setCurrentApprovalLevel(null);
+            response.setPendingWith(null);
+        }
+
+        // Set appropriate status and message
+        if (isFullyApproved) {
+            response.setCurrentStatus("APPROVED");
+            response.setStatusMessage("Your indent is finally approved.");
+            response.setIsEditable(true);  // Fully approved indents can be edited
+        } else if (pendingTransition != null) {
+            response.setCurrentStatus("IN_PROGRESS");
+            response.setStatusMessage("Indent is currently in approval workflow. Completed " + approvalsDone + " of " + totalLevels + " approvals.");
+            response.setIsEditable(false);  // In-progress indents cannot be edited
+        } else if (approvalsDone > 0) {
+            response.setCurrentStatus("IN_PROGRESS");
+            response.setStatusMessage("Indent is being processed. " + approvalsDone + " approval(s) completed.");
+            response.setIsEditable(false);
+        } else {
+            response.setCurrentStatus("DRAFT");
+            response.setStatusMessage("Indent is pending submission or approval.");
+            response.setIsEditable(true);
+        }
     } else {
-        // Set default values when workflow hasn't been initiated yet
+        // No workflow transitions - indent is in draft
         response.setStatus("Pending");
         response.setProcessStage("Not Started");
+        response.setCurrentStatus("DRAFT");
+        response.setStatusMessage("Indent is in draft state.");
+        response.setApprovalLevel(0);
+        response.setTotalApprovalLevels(0);
+        response.setIsFullyApproved(false);
+        response.setIsEditable(true);
     }
 
     return response;
@@ -911,6 +1046,7 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
                 materialResponse.setMaterialCategory(material.getMaterialCategory());
                 materialResponse.setMaterialSubCategory(material.getMaterialSubCategory());
                 materialResponse.setCurrency(material.getCurrency());
+                materialResponse.setConversionRate(material.getConversionRate());
 
                 List<String> vendorNames = vendorNameRepository.findByMaterialId(material.getId())
                         .stream()
@@ -1057,6 +1193,11 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
         response.setIndentType(indentType);
         response.setMaterialCategoryType(indentCreation.getMaterialCategoryType());
 
+        // Map project-related fields
+        response.setIsUnderProject(indentCreation.getIsUnderProject());
+        response.setProjectCode(indentCreation.getProjectCode());
+        response.setModeOfProcurement(indentCreation.getModeOfProcurement());
+
         BigDecimal totalPriceOfAllMaterials = BigDecimal.ZERO;
 
         if ("material".equalsIgnoreCase(indentType)) {
@@ -1087,6 +1228,7 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
                 materialResponse.setMaterialCategory(material.getMaterialCategory());
                 materialResponse.setMaterialSubCategory(material.getMaterialSubCategory());
                 materialResponse.setCurrency(material.getCurrency());
+                materialResponse.setConversionRate(material.getConversionRate());
 
                 List<String> vendorNames = vendorNameRepository.findByMaterialId(material.getId())
                         .stream()
@@ -1168,9 +1310,74 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
         response.setLockedReason(indentCreation.getLockedReason());
         response.setVersion(indentCreation.getVersion());
         response.setParentIndentId(indentCreation.getParentIndentId());
-        response.setCurrentStatus(indentCreation.getCurrentStatus());
         response.setCurrentStage(indentCreation.getCurrentStage());
-        response.setApprovalLevel(indentCreation.getApprovalLevel());
+
+        // FIX: Calculate actual approval level and status from workflow transitions
+        String indentId = indentCreation.getIndentId();
+        List<WorkflowTransition> workflowTransitions = workflowTransitionRepository.findByRequestId(indentId);
+
+        if (workflowTransitions != null && !workflowTransitions.isEmpty()) {
+            // Get the last transition by workflowSequence
+            WorkflowTransition lastTransition = workflowTransitions.stream()
+                    .max(Comparator.comparing(wt -> wt.getWorkflowSequence() != null ? wt.getWorkflowSequence() : 0))
+                    .orElse(null);
+
+            // FIX: Count ACTUAL approvals completed (where nextAction = "Completed")
+            // When an approver approves, their transition's nextAction is set to "Completed"
+            long approvalsDone = workflowTransitions.stream()
+                    .filter(wt -> "Completed".equalsIgnoreCase(wt.getNextAction()))
+                    .count();
+
+            // FIX: Workflow is fully approved when the LAST transition has:
+            // - status = "Completed" (final state)
+            // - nextRole is null or empty (no more approvers)
+            boolean isFullyApproved = lastTransition != null &&
+                    "Completed".equalsIgnoreCase(lastTransition.getStatus()) &&
+                    (lastTransition.getNextRole() == null || lastTransition.getNextRole().isEmpty());
+
+            // FIX: Find ACTUALLY pending transition (one with nextAction = "Pending")
+            WorkflowTransition pendingTransition = workflowTransitions.stream()
+                    .filter(wt -> "Pending".equalsIgnoreCase(wt.getNextAction()))
+                    .findFirst()
+                    .orElse(null);
+
+            // FIX: Calculate total approval levels correctly
+            int totalLevels;
+            if (isFullyApproved) {
+                totalLevels = (int) approvalsDone;
+            } else {
+                totalLevels = (int) workflowTransitions.stream()
+                        .filter(wt -> wt.getNextRole() != null && !wt.getNextRole().isEmpty())
+                        .count();
+            }
+
+            // Set actual approval level
+            response.setApprovalLevel((int) approvalsDone);
+            response.setTotalApprovalLevels(totalLevels);
+            response.setIsFullyApproved(isFullyApproved);
+
+            // Set appropriate status and message
+            if (isFullyApproved) {
+                response.setCurrentStatus("APPROVED");
+                response.setStatusMessage("Your indent is finally approved.");
+            } else if (pendingTransition != null) {
+                response.setCurrentStatus("IN_PROGRESS");
+                response.setStatusMessage("Indent is currently in approval workflow. Completed " + approvalsDone + " of " + totalLevels + " approvals.");
+            } else if (approvalsDone > 0) {
+                response.setCurrentStatus("IN_PROGRESS");
+                response.setStatusMessage("Indent is being processed. " + approvalsDone + " approval(s) completed.");
+            } else {
+                response.setCurrentStatus(indentCreation.getCurrentStatus() != null ? indentCreation.getCurrentStatus() : "DRAFT");
+                response.setStatusMessage("Indent is pending submission or approval.");
+            }
+        } else {
+            // No workflow transitions - indent is in draft
+            response.setApprovalLevel(indentCreation.getApprovalLevel() != null ? indentCreation.getApprovalLevel() : 0);
+            response.setCurrentStatus(indentCreation.getCurrentStatus() != null ? indentCreation.getCurrentStatus() : "DRAFT");
+            response.setStatusMessage("Indent is in draft state.");
+            response.setTotalApprovalLevels(0);
+            response.setIsFullyApproved(false);
+        }
 
         return response;
     }
@@ -1445,35 +1652,65 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
         return result;
     }
 
+    // updated assigning part bellow
     @Override
+    @Transactional
     public String assignEmployeeToIndent(AssignEmployeeToIndentDto dto) {
+
         IndentCreation indent = indentCreationRepository.findById(dto.getIndentId())
                 .orElseThrow(() -> new BusinessException(
-                        new ErrorDetails(
-                                AppConstant.ERROR_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_RESOURCE,
-                                "Indent not found for the provided ID."
-                        )
-                ));
+                new ErrorDetails(
+                        AppConstant.ERROR_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_CODE_RESOURCE,
+                        AppConstant.ERROR_TYPE_RESOURCE,
+                        "Indent not found for the provided ID."
+                )
+        ));
+        // added by abhinav starts
+        //  STEP 1: Deactivate existing assignment (if any)
+        Optional<IndentAssignment> existingAssignment
+                = indentAssignmentRepository.findByIndentIdAndStatus(dto.getIndentId(), "ACTIVE");
+
+        if (existingAssignment.isPresent()) {
+            IndentAssignment old = existingAssignment.get();
+            old.setStatus("INACTIVE");
+            indentAssignmentRepository.save(old);
+        }
+
+        //  STEP 2: Create new assignment record
+        IndentAssignment newAssignment = new IndentAssignment();
+        newAssignment.setIndentId(dto.getIndentId());
+        newAssignment.setAssignedToEmployeeId(dto.getEmployeeId());
+
+        newAssignment.setAssignedByEmployeeId("SYSTEM");
+
+        newAssignment.setAssignedDate(LocalDateTime.now());
+        newAssignment.setStatus("ACTIVE");
+
+        indentAssignmentRepository.save(newAssignment);
+
+        //  STEP 3: (Optional but safe) Update old column for backward compatibility
         indent.setEmployeeId(dto.getEmployeeId());
         indent.setEmployeeName(dto.getEmployeeName());
-
         indentCreationRepository.save(indent);
 
-        Optional<EmployeeDepartmentMaster> em = employeeDepartmentMasterRepository.findByEmployeeId(dto.getEmployeeId());
+        //  Email Notification
+        Optional<EmployeeDepartmentMaster> em
+                = employeeDepartmentMasterRepository.findByEmployeeId(dto.getEmployeeId());
+
         UserMaster um = userMasterRepository.findByUserId(indent.getCreatedBy());
+
         if (em.isPresent()) {
-            EmployeeDepartmentMaster employee = em.get();
             try {
-                emailService.notifyEmployeeAssigned(indent, employee.getEmailAddress(), um.getEmail());
-            } catch (MessagingException e) {
-                // swallow or log as per existing pattern
+                emailService.notifyEmployeeAssigned(indent, em.get().getEmailAddress(), um.getEmail());
+            } catch (Exception e) {
+                // log only
             }
         }
 
-        return "Employee " + dto.getEmployeeName() + " assigned to indent " + dto.getIndentId() + " successfully";
-    }
+        return "Employee " + dto.getEmployeeName()
+                + " assigned to indent " + dto.getIndentId() + " successfully";
+    } // updated till here by abhinav
 
     @Override
     public String cancelIndent(CancelIndentRequestDto request) {
@@ -1496,6 +1733,62 @@ public IndentDataResponseDto getIndentDataById(String indentId) throws IOExcepti
 
     /**
      * Validates computer item prices against department-specific price limits
+     * Validates vendor name count based on mode of procurement.
+     * - Limited Tender: minimum 4 vendor names required
+     * - Proprietary Purchase: maximum 1 vendor name allowed
+     * - Open Tender, Global Tender, BRAND PAC, GEM: no vendor names allowed
+     */
+    private void validateVendorCountByModeOfProcurement(String modeOfProcurement, List<MaterialDetailsRequestDTO> materialDetailsList) {
+        if (modeOfProcurement == null || modeOfProcurement.trim().isEmpty() || materialDetailsList == null) {
+            return;
+        }
+
+        String mop = modeOfProcurement.trim().toUpperCase().replace(" ", "_").replace("-", "_");
+
+        for (MaterialDetailsRequestDTO material : materialDetailsList) {
+            int vendorCount = (material.getVendorNames() != null) ? material.getVendorNames().size() : 0;
+            // Also check material-level MOP if set, otherwise use indent-level
+            String materialMop = material.getModeOfProcurement();
+            String effectiveMop = (materialMop != null && !materialMop.trim().isEmpty())
+                    ? materialMop.trim().toUpperCase().replace(" ", "_").replace("-", "_")
+                    : mop;
+
+            if (effectiveMop.contains("LIMITED") && effectiveMop.contains("TENDER")) {
+                // Limited Tender: minimum 4 vendors
+                if (vendorCount < 4) {
+                    throw new InvalidInputException(new ErrorDetails(
+                            AppConstant.USER_INVALID_INPUT,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Limited Tender requires a minimum of 4 vendor names. " +
+                            "Material '" + material.getMaterialCode() + "' has only " + vendorCount + " vendor(s)."));
+                }
+            } else if (effectiveMop.contains("PROPRIETARY")) {
+                // Proprietary Purchase: maximum 1 vendor
+                if (vendorCount > 1) {
+                    throw new InvalidInputException(new ErrorDetails(
+                            AppConstant.USER_INVALID_INPUT,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Proprietary Purchase allows a maximum of 1 vendor name. " +
+                            "Material '" + material.getMaterialCode() + "' has " + vendorCount + " vendor(s)."));
+                }
+            } else if (effectiveMop.contains("OPEN") || effectiveMop.contains("GLOBAL")
+                    || effectiveMop.contains("BRAND") || effectiveMop.contains("GEM")) {
+                // Open Tender, Global Tender, BRAND PAC, GEM: no vendor selection
+                if (vendorCount > 0) {
+                    throw new InvalidInputException(new ErrorDetails(
+                            AppConstant.USER_INVALID_INPUT,
+                            AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                            AppConstant.ERROR_TYPE_VALIDATION,
+                            "Vendor names are not allowed for '" + modeOfProcurement + "'. " +
+                            "Material '" + material.getMaterialCode() + "' has " + vendorCount + " vendor(s)."));
+                }
+            }
+        }
+    }
+
+    /**
      * @param materialDetailsList List of materials to validate
      * @param departmentName Department name for which to check price limits
      * @throws InvalidInputException if any computer item exceeds the department's price limit

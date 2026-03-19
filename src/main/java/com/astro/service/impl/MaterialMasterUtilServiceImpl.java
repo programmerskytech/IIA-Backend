@@ -193,14 +193,17 @@ public class MaterialMasterUtilServiceImpl implements MaterialMasterUtilService 
     */
    @Override
    public String performActionForMaterial(ApprovalAndRejectionRequestDTO request) {
-       // Fetch roleId from UserRoleMaster
-       Integer roleId = userRoleMasterRepository.findRoleIdByUserId(request.getActionBy())
-               .orElseThrow(() -> new InvalidInputException(new ErrorDetails(
-                       AppConstant.ERROR_TYPE_CODE_VALIDATION,
-                       AppConstant.ERROR_TYPE_CODE_VALIDATION,
-                       AppConstant.ERROR_TYPE_VALIDATION,
-                       "Unauthorised User!"
-               )));
+       // Fetch all roleIds for the user (user can have multiple roles)
+       List<Integer> roleIds = userRoleMasterRepository.findAllRoleIdsByUserId(request.getActionBy());
+       if (roleIds == null || roleIds.isEmpty()) {
+           throw new InvalidInputException(new ErrorDetails(
+                   AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                   AppConstant.ERROR_TYPE_CODE_VALIDATION,
+                   AppConstant.ERROR_TYPE_VALIDATION,
+                   "Unauthorised User!"
+           ));
+       }
+
        MaterialMasterUtil material = materialMasterUtilRepository
                .findById(request.getRequestId())
                .orElseThrow(() -> new InvalidInputException(new ErrorDetails(
@@ -213,16 +216,18 @@ public class MaterialMasterUtilServiceImpl implements MaterialMasterUtilService 
        int actionBy = request.getActionBy();
        String remarks = request.getRemarks();
 
+       boolean isStorePurchaseOfficer = roleIds.contains(11);
+       boolean isIndentCreator = roleIds.contains(1);
+
        switch (request.getAction().toUpperCase()) {
            case "APPROVED":
-               if (roleId == 11) {  // Store Purchase Officer
+               if (isStorePurchaseOfficer) {  // Store Purchase Officer
                    return approveMaterial(material, actionBy, remarks);
-               } else if (roleId == 1 && material.getApprovalStatus() == MaterialMasterUtil.ApprovalStatus.CHANGE_REQUEST) {
+               } else if (isIndentCreator && material.getApprovalStatus() == MaterialMasterUtil.ApprovalStatus.CHANGE_REQUEST) {
                    material.setComments(remarks);
                    material.setApprovalStatus(MaterialMasterUtil.ApprovalStatus.AWAITING_APPROVAL);
                    materialMasterUtilRepository.save(material);
                    saveMaterialTracking(material.getMaterialCode(), "PENDING", "APPROVED", remarks, actionBy);
-
 
                    return "Material " + material.getMaterialCode() + " has been updated to AWAITING APPROVAL.";
                }
@@ -232,7 +237,7 @@ public class MaterialMasterUtilServiceImpl implements MaterialMasterUtilService 
                return rejectMaterial(material, remarks, actionBy);
 
            case "CHANGE REQUEST":
-               if (roleId == 11) {  // Store Purchase Officer
+               if (isStorePurchaseOfficer) {  // Store Purchase Officer
                    return changeRequestVendor(material, remarks, actionBy);
                }
                break;

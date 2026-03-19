@@ -53,9 +53,12 @@ public class CacheConfig {
             new ConcurrentMapCache("lovsByDesignatorId"),
             new ConcurrentMapCache("activeLovsByDesignatorId"),
             new ConcurrentMapCache("lovsByFormAndField"),
+            new ConcurrentMapCache("activeLovsByFormAndField"),
             new ConcurrentMapCache("lovById"),
             new ConcurrentMapCache("dependentLovs"),
+            new ConcurrentMapCache("activeDependentLovs"),
             new ConcurrentMapCache("allDropdownsForForm"),
+            new ConcurrentMapCache("activeDropdownsForForm"),
             new ConcurrentMapCache("totalActiveLOVCount")
         ));
         return cacheManager;

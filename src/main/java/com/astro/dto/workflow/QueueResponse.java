@@ -47,6 +47,10 @@ public class QueueResponse {
     private String vendorName;
     private String paymentType;
 
+    // Reporting Officer assignment fields
+    private Integer assignedToUserId;
+    private String assignedToEmployeeName;
+
 
 
 

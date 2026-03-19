@@ -12,7 +12,7 @@ public class VendorMasterUtil {
 
     @Id
     private String vendorId;
-    @Column(name = "vendor_number", unique = true)
+    @Column(name = "vendor_number")
     private Integer vendorNumber;
     private String vendorName;
     private String vendorType;
@@ -40,7 +40,7 @@ public class VendorMasterUtil {
     private Integer createdBy;
     @Column(name = "updated_by")
     private String updatedBy;
-    @Column(name = "alternate_email_or_phone_number")
+    @Column(name = "alternate_email_or_phone_number", length = 255)
     private String alternateEmailOrPhoneNumber;
 
     @Column(name = "swift_code")

@@ -48,6 +48,26 @@ public class ApproverMaster {
     @Column(name = "status", length = 50)
     private String status = "Active"; // Active, Inactive
 
+    // Dynamic routing fields for conditional approval
+    // // added by abhinav
+    @Column(name = "condition_check_type", length = 50)
+    private String conditionCheckType; // LIMIT_CHECK, BUDGET_CHECK, DEPARTMENT_BASED, NONE
+
+    @Column(name = "limit_check_config", columnDefinition = "JSON")
+    private String limitCheckConfig; // {"checkField": "totalIndentValue", "limitSource": "APPROVAL_LIMIT_MASTER"}
+
+    @Column(name = "skip_if_condition", columnDefinition = "JSON")
+    private String skipIfCondition; // {"field": "totalIndentValue", "operator": "LT", "value": 50000}
+
+    @Column(name = "escalate_if_condition", columnDefinition = "JSON")
+    private String escalateIfCondition; // {"field": "totalIndentValue", "operator": "GT", "limitField": "approvalLimit"}
+
+    @Column(name = "escalation_approver_id")
+    private Long escalationApproverId;
+
+    @Column(name = "auto_approve_hours")
+    private Integer autoApproveHours;
+
     // Audit
     @Column(name = "created_by", length = 100)
     private String createdBy;

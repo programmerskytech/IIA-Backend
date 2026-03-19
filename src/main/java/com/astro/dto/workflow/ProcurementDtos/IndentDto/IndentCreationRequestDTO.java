@@ -63,5 +63,10 @@ public class IndentCreationRequestDTO {
     // Job details list for job/service indents
     private List<JobDetailsRequestDTO> jobDetails;
     // Add this field
-private String indentorDepartment;
+    private String indentorDepartment;
+
+    // Project-related fields for workflow branch matching
+    private Boolean isUnderProject;
+    private String projectCode;
+    private String modeOfProcurement;
 }

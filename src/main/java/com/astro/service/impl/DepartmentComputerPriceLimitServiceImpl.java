@@ -104,17 +104,10 @@ public class DepartmentComputerPriceLimitServiceImpl implements DepartmentComput
 
     @Override
     public DepartmentComputerPriceLimitResponseDTO getPriceLimitByDepartment(String departmentName) {
-        DepartmentComputerPriceLimit priceLimit = priceLimitRepository
+        return priceLimitRepository
                 .findByDepartmentNameIgnoreCaseAndIsActiveTrue(departmentName)
-                .orElseThrow(() -> new BusinessException(
-                        new ErrorDetails(
-                                AppConstant.ERROR_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_CODE_RESOURCE,
-                                AppConstant.ERROR_TYPE_RESOURCE,
-                                "No active price limit found for department: " + departmentName
-                        )
-                ));
-        return mapToResponseDTO(priceLimit);
+                .map(this::mapToResponseDTO)
+                .orElse(null);
     }
 
     @Override

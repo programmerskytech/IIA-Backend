@@ -1,11 +1,12 @@
 package com.astro.controller.ProcurementModuleController;
 
 import com.astro.dto.workflow.ProcurementDtos.*;
-
+import javax.validation.Valid; // added by abhinav
 import com.astro.dto.workflow.ProcurementDtos.IndentDto.CancelIndentRequestDto;
 import com.astro.dto.workflow.ProcurementDtos.IndentDto.IndentCreationResponseDTO;
 import com.astro.dto.workflow.ProcurementDtos.IndentDto.MaterialDetailsResponseDTO;
 import com.astro.dto.workflow.ProcurementDtos.purchaseOrder.SearchPOIdDto;
+import com.astro.constant.WorkflowName; // added by abhinav
 import com.astro.dto.workflow.WorkflowTransitionDto;
 import com.astro.service.TenderRequestService;
 
@@ -44,12 +45,16 @@ public class TenderRequestController {
     @Autowired
     private UtilProcurementService cancelTender;
     @PostMapping
-    public ResponseEntity<Object> createTenderRequest(@RequestBody TenderRequestDto tenderRequestDTO) {
+    public ResponseEntity<Object> createTenderRequest(@Valid @RequestBody TenderRequestDto tenderRequestDTO) { // updated by abhinav the method signature to accept DTO instead of individual parameters
 
         TenderResponseDto created = TRService.createTenderRequest(tenderRequestDTO);
 
         String requestId = created.getTenderId(); // Useing the indent ID as the request ID
-        String workflowName = "Tender Approver Workflow";
+        // String workflowName = "Tender Approver Workflow";    // Need to change the workflow name
+
+        // String workflowName = WorkflowName.TENDER_APPROVER.getValue();  // Use enum for workflow name
+        String workflowName = WorkflowName.TENDER_APPROVER.getKey(); // updated by abhinav  to match to db
+
         Integer userId = created.getCreatedBy();
         //initiateing Workflow API
         WorkflowTransitionDto workflowTransitionDto = workflowService.initiateWorkflow(requestId, workflowName, userId);

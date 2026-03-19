@@ -58,4 +58,19 @@ public class IndentDataResponseDto {
     private String processStage;
     private String status;
 
+    // Project-related fields
+    private Boolean isUnderProject;
+    private String projectCode;
+    private String modeOfProcurement;
+
+    // FIX: Added fields for proper workflow status display
+    private String currentStatus;  // DRAFT, IN_PROGRESS, APPROVED
+    private String statusMessage;  // User-friendly status message
+    private Integer approvalLevel;  // Current approval level (completed count)
+    private Integer totalApprovalLevels;  // Total number of approval levels
+    private Boolean isFullyApproved;  // True if all approvals are complete
+    private Boolean isEditable;  // Whether indent can be edited
+    private Integer currentApprovalLevel;  // Which level is currently pending approval
+    private String pendingWith;  // Role name of who needs to approve next
+
 }

@@ -13,4 +13,10 @@ public interface WorkflowBranchMasterRepository extends JpaRepository<WorkflowBr
     List<WorkflowBranchMaster> findByWorkflowIdAndIsActiveTrue(Integer workflowId);
     Optional<WorkflowBranchMaster> findByWorkflowIdAndBranchCode(Integer workflowId, String branchCode);
     List<WorkflowBranchMaster> findByWorkflowIdOrderByDisplayOrderAsc(Integer workflowId);
+
+    // Check for duplicate condition config
+    Optional<WorkflowBranchMaster> findByWorkflowIdAndConditionConfig(Integer workflowId, String conditionConfig);
+
+    // Check for duplicate condition config excluding a specific branch (for updates)
+    List<WorkflowBranchMaster> findByWorkflowIdAndConditionConfigAndBranchIdNot(Integer workflowId, String conditionConfig, Long branchId);
 }

@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Date; // added by abhinav
 
 @Entity
 @Table(name = "purchase_order")
@@ -30,7 +31,7 @@ public class PurchaseOrder {
     @Column(name = "billing_address")
     private String billingAddress;
     @Column(name = "delivery_period")
-    private BigDecimal deliveryPeriod;
+    private String deliveryPeriod; // updated by abhinavto string from BigDecimal
     @Column(name = "if_ld_clause_applicable")
     private  Boolean ifLdClauseApplicable;
     @Column(name = "inco_terms")
@@ -79,8 +80,28 @@ public class PurchaseOrder {
     private LocalDate quotationDate;
     private String additionalTermsAndConditions;
     private BigDecimal buyBackAmount;
+    // added by abhinav for workflow and versioning
+    @Column(name = "is_active")
+    private Boolean isActive = true;
 
+    @Column(name = "is_cancelled")
+    private Boolean isCancelled = false;
 
+    @Column(name = "current_status")
+    private String currentStatus;
+
+    @Column(name = "is_locked")
+    private Boolean isLocked = false;
+
+    @Column(name = "locked_date")
+    private Date lockedDate;
+
+    @Column(name = "locked_by")
+    private Integer lockedBy;
+
+    @Column(name = "po_version")
+    private Integer poVersion = 1;
+    // added by abhinav end here
    // @OneToMany(cascade = CascadeType.ALL)
    // @JoinColumn(name = "purchase_order_id")
   /* @ManyToMany(cascade = CascadeType.PERSIST)
@@ -96,7 +117,26 @@ public class PurchaseOrder {
     @Column(name = "created_by")
     private Integer createdBy;
     @Column(name = "updated_by")
-    private String updatedBy;
-    private LocalDateTime createdDate = LocalDateTime.now();
-    private LocalDateTime updatedDate = LocalDateTime.now();
+    // private String updatedBy;
+    private Integer updatedBy; //updated by abhinav to Integer to match createdBy type
+
+    // private LocalDateTime createdDate = LocalDateTime.now();
+    // private LocalDateTime updatedDate = LocalDateTime.now();
+    // updated by abhinav the createdDate and updatedDate
+    @Column(name = "created_date", updatable = false)
+    private LocalDateTime createdDate;
+
+    @Column(name = "updated_date")
+    private LocalDateTime updatedDate;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdDate = LocalDateTime.now();
+        this.updatedDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedDate = LocalDateTime.now();
+    }
 }

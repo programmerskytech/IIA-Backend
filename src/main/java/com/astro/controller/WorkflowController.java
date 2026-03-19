@@ -47,21 +47,21 @@ public class WorkflowController {
     }
 
     @GetMapping("/pendingWorkflowTransition")
-    public ResponseEntity<Object> pendingWorkflowTransition(@RequestParam String roleName)  {
-        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransition(roleName)), HttpStatus.OK);
+    public ResponseEntity<Object> pendingWorkflowTransition(@RequestParam String roleName, @RequestParam(required = false) Integer userId)  {
+        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransition(roleName, userId)), HttpStatus.OK);
     }
     @GetMapping("/completedIndentWorkflowTransition")
     public ResponseEntity<Object> completedIndentWorkflowTransition(@RequestParam String roleName)  {
         return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allCompletedWorkflowTransition(roleName)), HttpStatus.OK);
     }
     @GetMapping("/pendingWorkflowTransitionQueue")
-    public ResponseEntity<Object> pendingWorkflowTransitionQueue(@RequestParam String roleName)  {
-        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransitionINQueue(roleName)), HttpStatus.OK);
+    public ResponseEntity<Object> pendingWorkflowTransitionQueue(@RequestParam String roleName, @RequestParam(required = false) Integer userId)  {
+        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransitionINQueue(roleName, userId)), HttpStatus.OK);
     }
 
     @GetMapping("/allPendingWorkflowTransition")
-    public ResponseEntity<Object> allPendingWorkflowTransition(@RequestParam String roleName)  {
-        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransition(roleName)), HttpStatus.OK);
+    public ResponseEntity<Object> allPendingWorkflowTransition(@RequestParam String roleName, @RequestParam(required = false) Integer userId)  {
+        return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(workflowService.allPendingWorkflowTransition(roleName, userId)), HttpStatus.OK);
     }
     @GetMapping("/allCancledIndents")
     public ResponseEntity<Object> allCancledIndents()  {

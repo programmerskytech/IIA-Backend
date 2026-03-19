@@ -2,7 +2,7 @@ package com.astro.controller;
 
 
 import com.astro.dto.workflow.UserDto;
-
+import com.astro.dto.workflow.UserSearchResponseDto;
 import com.astro.dto.workflow.userRequestDto;
 import com.astro.service.UserService;
 import com.astro.util.ResponseBuilder;
@@ -67,5 +67,40 @@ public class UserMasterController {
         private Integer userId;
         private String oldPassword;
         private String newPassword;
+    }
+
+    // Search users by keyword (username, email, mobile, employee ID, employee name)
+    @GetMapping("/search")
+    public ResponseEntity<Object> searchUsers(@RequestParam(value = "keyword", required = false) String keyword) {
+        List<UserSearchResponseDto> users = userService.searchUsers(keyword);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(users), HttpStatus.OK);
+    }
+
+    // Get all users with roles for listing in table
+    @GetMapping("/list")
+    public ResponseEntity<Object> getAllUsersWithRoles() {
+        List<UserSearchResponseDto> users = userService.getAllUsersWithRoles();
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(users), HttpStatus.OK);
+    }
+
+    // Toggle user active/inactive status
+    @PutMapping("/{userId}/toggle-status")
+    public ResponseEntity<Object> toggleUserStatus(@PathVariable int userId) {
+        UserDto user = userService.toggleUserStatus(userId);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(user), HttpStatus.OK);
+    }
+
+    // Activate a user
+    @PutMapping("/{userId}/activate")
+    public ResponseEntity<Object> activateUser(@PathVariable int userId) {
+        UserDto user = userService.activateUser(userId);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(user), HttpStatus.OK);
+    }
+
+    // Deactivate a user
+    @PutMapping("/{userId}/deactivate")
+    public ResponseEntity<Object> deactivateUser(@PathVariable int userId) {
+        UserDto user = userService.deactivateUser(userId);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(user), HttpStatus.OK);
     }
 }

@@ -1,7 +1,9 @@
 package com.astro.controller.AdminPanel;
 
 import com.astro.entity.AdminPanel.BudgetMaster;
+import com.astro.entity.ProjectMaster;
 import com.astro.repository.AdminPanel.BudgetMasterRepository;
+import com.astro.repository.ProjectMasterRepository;
 import com.astro.util.ResponseBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -9,9 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin/budget")
@@ -20,6 +24,9 @@ public class BudgetController {
 
     @Autowired
     private BudgetMasterRepository budgetRepository;
+
+    @Autowired
+    private ProjectMasterRepository projectMasterRepository;
 
     @PostMapping
     public ResponseEntity<Object> createBudget(@RequestBody BudgetMaster budget) {
@@ -140,5 +147,124 @@ public class BudgetController {
     public ResponseEntity<Object> getBudgetsByDepartment(@PathVariable String departmentName) {
         List<BudgetMaster> budgets = budgetRepository.findByDepartmentName(departmentName);
         return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(budgets), HttpStatus.OK);
+    }
+
+    /**
+     * Get all budget codes for dropdown (used in Add New Project)
+     * Returns a list of budget codes with their names for dropdown selection
+     */
+    @GetMapping("/dropdown")
+    public ResponseEntity<Object> getBudgetCodesForDropdown() {
+        List<BudgetMaster> budgets = budgetRepository.findAll();
+        List<Map<String, String>> dropdownItems = budgets.stream()
+                .filter(b -> b.getBudgetCode() != null)
+                .map(b -> {
+                    Map<String, String> item = new HashMap<>();
+                    item.put("budgetCode", b.getBudgetCode());
+                    item.put("budgetName", b.getBudgetName() != null ? b.getBudgetName() : b.getBudgetCode());
+                    item.put("displayValue", b.getBudgetCode() + " - " + (b.getBudgetName() != null ? b.getBudgetName() : ""));
+                    return item;
+                })
+                .collect(java.util.stream.Collectors.toList());
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(dropdownItems), HttpStatus.OK);
+    }
+
+    /**
+     * Get budgets by project code (used in Indent Creation page)
+     * Returns budgets linked to a specific project
+     */
+    @GetMapping("/project/{projectCode}")
+    public ResponseEntity<Object> getBudgetsByProjectCode(@PathVariable String projectCode) {
+        List<BudgetMaster> budgets = budgetRepository.findByProjectCode(projectCode);
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(budgets), HttpStatus.OK);
+    }
+
+    /**
+     * Get budget codes dropdown for a specific project (used in Indent Creation)
+     * Returns budget codes linked to the selected project
+     */
+    @GetMapping("/project/{projectCode}/dropdown")
+    public ResponseEntity<Object> getBudgetCodesForProjectDropdown(@PathVariable String projectCode) {
+        List<Map<String, String>> dropdownItems = new ArrayList<>();
+
+        Optional<ProjectMaster> projectOpt = projectMasterRepository.findById(projectCode);
+
+        // Primary: project's stored budgetCode field
+        if (projectOpt.isPresent()) {
+            String budgetCode = projectOpt.get().getBudgetCode();
+            if (budgetCode != null && !budgetCode.trim().isEmpty()) {
+                budgetRepository.findByBudgetCode(budgetCode)
+                        .ifPresent(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+            }
+        }
+
+        // Fallback 1: budgets where budget.projectCode = this project
+        if (dropdownItems.isEmpty()) {
+            budgetRepository.findByProjectCode(projectCode).stream()
+                    .filter(b -> b.getBudgetCode() != null)
+                    .forEach(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+        }
+
+        // Fallback 2: budgets whose category matches the project's budgetType
+        if (dropdownItems.isEmpty() && projectOpt.isPresent()) {
+            String budgetType = projectOpt.get().getBudgetType();
+            if (budgetType != null && !budgetType.trim().isEmpty()) {
+                budgetRepository.findByCategory(budgetType).stream()
+                        .filter(b -> b.getBudgetCode() != null)
+                        .forEach(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+            }
+        }
+
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(dropdownItems), HttpStatus.OK);
+    }
+
+    /**
+     * Get budget codes for a project using the project's stored budgetCode (used in Indent Creation).
+     * Looks up the project's budgetCode field, then returns matching budget(s) as a dropdown list.
+     * GET /api/admin/budget/for-project/{projectCode}
+     */
+    @GetMapping("/for-project/{projectCode}")
+    public ResponseEntity<Object> getBudgetCodesForProject(@PathVariable String projectCode) {
+        List<Map<String, String>> dropdownItems = new ArrayList<>();
+
+        Optional<ProjectMaster> projectOpt = projectMasterRepository.findById(projectCode);
+
+        // Primary: look up budget via project's stored budgetCode field
+        if (projectOpt.isPresent()) {
+            String budgetCode = projectOpt.get().getBudgetCode();
+            if (budgetCode != null && !budgetCode.trim().isEmpty()) {
+                budgetRepository.findByBudgetCode(budgetCode)
+                        .ifPresent(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+            }
+        }
+
+        // Fallback 1: check if any budget has its projectCode pointing to this project
+        if (dropdownItems.isEmpty()) {
+            budgetRepository.findByProjectCode(projectCode).stream()
+                    .filter(b -> b.getBudgetCode() != null)
+                    .forEach(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+        }
+
+        // Fallback 2: match budgets by category = project's budgetType
+        // (covers new projects where the explicit link was never stored)
+        if (dropdownItems.isEmpty() && projectOpt.isPresent()) {
+            String budgetType = projectOpt.get().getBudgetType();
+            if (budgetType != null && !budgetType.trim().isEmpty()) {
+                budgetRepository.findByCategory(budgetType).stream()
+                        .filter(b -> b.getBudgetCode() != null)
+                        .forEach(b -> dropdownItems.add(toBudgetDropdownItem(b)));
+            }
+        }
+
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(dropdownItems), HttpStatus.OK);
+    }
+
+    private Map<String, String> toBudgetDropdownItem(BudgetMaster b) {
+        Map<String, String> item = new HashMap<>();
+        item.put("budgetCode", b.getBudgetCode());
+        item.put("budgetName", b.getBudgetName() != null ? b.getBudgetName() : b.getBudgetCode());
+        item.put("category", b.getCategory());
+        item.put("displayValue", b.getBudgetCode() + " - " + (b.getBudgetName() != null ? b.getBudgetName() : ""));
+        return item;
     }
 }

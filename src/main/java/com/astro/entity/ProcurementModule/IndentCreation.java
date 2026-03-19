@@ -185,7 +185,35 @@ public class IndentCreation {
     // Add this column
 @Column(name = "indentor_department")
 private String indentorDepartment;
-    
+
+    // Dynamic Workflow Fields - Project classification
+    @Column(name = "is_under_project")
+    private Boolean isUnderProject = false;
+
+    @Column(name = "project_code", length = 50)
+    private String projectCode;
+
+    @Column(name = "workflow_branch_id")
+    private Long workflowBranchId;
+
+    @Column(name = "escalated_to_director")
+    private Boolean escalatedToDirector = false;
+
+    @Column(name = "escalation_reason", length = 500)
+    private String escalationReason;
+
+    // Mode of Procurement - Mandatory field for workflow
+    // Values: GEM, OPEN_TENDER, LIMITED_TENDER, SINGLE_TENDER, PROPRIETARY, RATE_CONTRACT, etc.
+    @Column(name = "mode_of_procurement", length = 100)
+    private String modeOfProcurement;
+
+    // Reporting Officer's determination of project status (set during RO approval)
+    @Column(name = "ro_project_determination")
+    private Boolean roProjectDetermination;
+
+    @Column(name = "ro_project_determination_remarks", length = 500)
+    private String roProjectDeterminationRemarks;
+
     // Helper methods to convert between List and comma-separated String
     public List<String> getRateContractJobCodesAsList() {
         if (rateContractJobCodes == null || rateContractJobCodes.isEmpty()) {

@@ -30,4 +30,9 @@ public class WorkflowTransitionDto {
     private Integer workflowSequence;
     private Date modificationDate;
     private Date createdDate;
+
+    // Reporting Officer assignment fields
+    private Integer assignedToUserId;
+    private String assignedToEmployeeId;
+    private String assignedToEmployeeName;
 }

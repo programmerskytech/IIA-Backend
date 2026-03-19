@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class UserDto {
@@ -17,4 +18,10 @@ public class UserDto {
     private String roleName;
     private String createdBy;
     private LocalDateTime createdDate;
+
+    // New field: List of roles assigned to the user
+    private List<String> roleNames;
+
+    // User active/inactive status
+    private Boolean isActive;
 }

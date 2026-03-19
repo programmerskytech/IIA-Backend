@@ -58,7 +58,15 @@ public class PurchaseOrderController {
     public ResponseEntity<Object> updatePurchaseOrder(
             @PathVariable String poId,
             @RequestBody @Valid PurchaseOrderRequestDTO purchaseOrderRequestDTO) {
-        PurchaseOrderResponseDTO  updatedPO = poService.updatePurchaseOrder(poId, purchaseOrderRequestDTO);
+        PurchaseOrderResponseDTO updatedPO = poService.updatePurchaseOrder(poId, purchaseOrderRequestDTO);
+
+        // added by abhinav new line
+        String requestId = poId;
+        String workflowName = "PO Workflow";
+        Integer userId = purchaseOrderRequestDTO.getCreatedBy();
+
+        workflowService.initiateWorkflow(requestId, workflowName, userId);
+
         return new ResponseEntity<Object>(ResponseBuilder.getSuccessResponse(updatedPO), HttpStatus.OK);
     }
   // Get all POs

@@ -17,6 +17,7 @@ public interface MaterialMasterService {
     public void deleteMaterialMaster(String materialCode);
 
     List<MaterialSearchResponseDto> searchMaterials(String keyword);
+    List<MaterialSearchResponseDto> searchMaterialsByCategory(String keyword, String materialCategoryType);
     public MaterialMasterResponseDto getMaterialMasterByIdBase64(String materialCode) throws IOException;
 
 }

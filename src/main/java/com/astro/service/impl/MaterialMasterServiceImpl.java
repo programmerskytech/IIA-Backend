@@ -530,17 +530,40 @@ public class MaterialMasterServiceImpl implements MaterialMasterService {
     @Override
     public List<MaterialSearchResponseDto> searchMaterials(String keyword) {
         List<Object[]> results = materialMasterRepository.searchMaterialsForDropdown(keyword);
+        return mapSearchResults(results);
+    }
 
+    @Override
+    public List<MaterialSearchResponseDto> searchMaterialsByCategory(String keyword, String materialCategoryType) {
+        List<Object[]> results;
+
+        if ("computer".equalsIgnoreCase(materialCategoryType)) {
+            // Matches subCategory containing "computer" (e.g., "COMPUTER", "Computer & Peripherals")
+            results = materialMasterRepository.searchApprovedMaterialsComputer(keyword);
+        } else if ("non-computer".equalsIgnoreCase(materialCategoryType)) {
+            // Matches subCategory NOT containing "computer" (e.g., "CEMENT", "STEEL", "Electrical")
+            results = materialMasterRepository.searchApprovedMaterialsNonComputer(keyword);
+        } else {
+            // "all" or null - return all approved active materials
+            results = materialMasterRepository.searchMaterialsForDropdown(keyword);
+        }
+
+        return mapSearchResults(results);
+    }
+
+    private List<MaterialSearchResponseDto> mapSearchResults(List<Object[]> results) {
         return results.stream()
                 .map(obj -> new MaterialSearchResponseDto(
-                        (String) obj[0],
-                        (String) obj[1],
-                        (String) obj[2]
+                        (String) obj[0],                                          // materialCode
+                        (String) obj[1],                                          // description
+                        (String) obj[2],                                          // category
+                        (String) obj[3],                                          // subCategory
+                        (String) obj[4],                                          // uom
+                        obj[5] != null ? new java.math.BigDecimal(obj[5].toString()) : null, // unitPrice
+                        (String) obj[6]                                           // currency
                 ))
                 .collect(Collectors.toList());
     }
-
-
 
 
 }

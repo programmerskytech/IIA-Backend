@@ -33,6 +33,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.context.annotation.Lazy; // added by abhinav
 
 @Service
 public class ServiceOrderServiceImpl implements ServiceOrderService {
@@ -44,6 +45,7 @@ public class ServiceOrderServiceImpl implements ServiceOrderService {
     @Autowired
     private IndentCreationService indentCreationService;
     @Autowired
+    @Lazy // added by abhinav
     private TenderRequestService tenderRequestService;
     @Autowired
     private IndentIdRepository indentIdRepository;

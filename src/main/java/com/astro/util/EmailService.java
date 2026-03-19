@@ -157,6 +157,18 @@ public class EmailService {
         }
 
         String body = templateEngine.process("role-email-template", context);
+
+        // If assigned to a specific user (e.g., Reporting Officer), send directly to them
+        if (wt.getAssignedToUserId() != null) {
+            UserMaster assignedUser = userMasterRepository.findByUserId(wt.getAssignedToUserId());
+            if (assignedUser != null && assignedUser.getEmail() != null && !assignedUser.getEmail().isEmpty()) {
+                context.setVariable("userName", assignedUser.getUserName());
+                String assignedBody = templateEngine.process("role-email-template", context);
+                sendMailToUser(assignedUser.getEmail(), subject, assignedBody);
+                System.out.println("📧 Email sent to assigned Reporting Officer: " + assignedUser.getEmail());
+            }
+        }
+
         List<String> recipients = Arrays.asList(
                 "udaychowdhary743@gmail.com"
               //  "satish.k@iiap.res.in",
@@ -592,6 +604,38 @@ private void sendMail(List<String> toEmails, String subject, String htmlContent)
             mailSender.send(message);
             System.out.println("Email sent successfully to " + recipients);
         } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Async
+    public void sendAutoApprovalNotification(WorkflowTransition wt, String approverRole, Integer autoApproveHours) {
+        try {
+            Context context = new Context();
+            context.setVariable("requestId", wt.getRequestId());
+            context.setVariable("approverRole", approverRole);
+            context.setVariable("autoApproveHours", autoApproveHours);
+            context.setVariable("workflowName", wt.getWorkflowName());
+            context.setVariable("nextRole", wt.getNextRole());
+            context.setVariable("status", wt.getStatus());
+
+            String body = templateEngine.process("auto-approval-email-template", context);
+
+            List<String> recipients = Arrays.asList("udaychowdhary743@gmail.com");
+
+            sendMail(recipients,
+                    "Auto-Approved: Request " + wt.getRequestId() + " - " + approverRole + " did not act within " + autoApproveHours + " hours",
+                    body);
+
+            if (wt.getCreatedBy() != null) {
+                UserMaster creator = userMasterRepository.findByUserId(wt.getCreatedBy());
+                if (creator != null && creator.getEmail() != null) {
+                    sendMailToUser(creator.getEmail(),
+                            "Auto-Approved: Your Request " + wt.getRequestId(),
+                            body);
+                }
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

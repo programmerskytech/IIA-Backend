@@ -120,12 +120,20 @@ public interface LOVService {
     List<LOVMaster> getActiveLOVsByDesignatorId(Long designatorId);
 
     /**
-     * Get LOV values by form name and field name
+     * Get LOV values by form name and field name (includes inactive - for admin panel)
      * @param formName Form name (e.g., "MaterialMaster")
      * @param fieldName Field/Designator name (e.g., "category")
-     * @return List of active LOV values for the field
+     * @return List of all LOV values for the field (including inactive)
      */
     List<LOVMaster> getLOVsByFormAndField(String formName, String fieldName);
+
+    /**
+     * Get ACTIVE LOV values by form name and field name (for frontend dropdowns)
+     * @param formName Form name (e.g., "MaterialMaster")
+     * @param fieldName Field/Designator name (e.g., "category")
+     * @return List of active LOV values only for the field
+     */
+    List<LOVMaster> getActiveLOVsByFormAndField(String formName, String fieldName);
 
     /**
      * Get LOV by ID
@@ -135,11 +143,18 @@ public interface LOVService {
     Optional<LOVMaster> getLOVById(Long lovId);
 
     /**
-     * Get dependent LOV values (for cascading dropdowns)
+     * Get dependent LOV values (for cascading dropdowns) - includes inactive
      * @param parentLovId Parent LOV identifier
-     * @return List of child LOV values
+     * @return List of all child LOV values
      */
     List<LOVMaster> getDependentLOVs(Long parentLovId);
+
+    /**
+     * Get ACTIVE dependent LOV values (for cascading dropdowns) - for frontend
+     * @param parentLovId Parent LOV identifier
+     * @return List of active child LOV values only
+     */
+    List<LOVMaster> getActiveDependentLOVs(Long parentLovId);
 
     /**
      * Create new LOV value
@@ -165,19 +180,34 @@ public interface LOVService {
     // ========== BULK OPERATIONS ==========
 
     /**
-     * Get all dropdowns for a specific form
+     * Get all dropdowns for a specific form (includes inactive - for admin panel)
      * Returns a map where key is designator name and value is list of LOV values
      * @param formName Form name
-     * @return Map of designator name to LOV values
+     * @return Map of designator name to LOV values (including inactive)
      */
     Map<String, List<LOVMaster>> getAllDropdownsForForm(String formName);
 
     /**
-     * Get multiple LOV lists in a single call
+     * Get all ACTIVE dropdowns for a specific form (for frontend)
+     * Returns a map where key is designator name and value is list of active LOV values only
+     * @param formName Form name
+     * @return Map of designator name to active LOV values only
+     */
+    Map<String, List<LOVMaster>> getActiveDropdownsForForm(String formName);
+
+    /**
+     * Get multiple LOV lists in a single call (includes inactive - for admin panel)
      * @param formFieldPairs List of form-field pairs (e.g., ["MaterialMaster.category", "JobMaster.uom"])
-     * @return Map of form.field to LOV values
+     * @return Map of form.field to LOV values (including inactive)
      */
     Map<String, List<LOVMaster>> getBulkLOVs(List<String> formFieldPairs);
+
+    /**
+     * Get multiple ACTIVE LOV lists in a single call (for frontend)
+     * @param formFieldPairs List of form-field pairs (e.g., ["MaterialMaster.category", "JobMaster.uom"])
+     * @return Map of form.field to active LOV values only
+     */
+    Map<String, List<LOVMaster>> getActiveBulkLOVs(List<String> formFieldPairs);
 
     /**
      * Import LOV values in bulk

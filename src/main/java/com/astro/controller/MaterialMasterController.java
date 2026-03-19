@@ -33,8 +33,23 @@ public class MaterialMasterController {
 }
 
     @GetMapping("/materialSearch")
-    public ResponseEntity<Object> searchMaterials(@RequestParam("keyword") String keyword) {
-        List<MaterialSearchResponseDto> results = materialMasterService.searchMaterials(keyword);
+    public ResponseEntity<Object> searchMaterials(
+            @RequestParam("keyword") String keyword,
+            @RequestParam(value = "materialCategoryType", required = false) String materialCategoryType) {
+        List<MaterialSearchResponseDto> results;
+        if (materialCategoryType != null && !materialCategoryType.trim().isEmpty() && !"all".equalsIgnoreCase(materialCategoryType)) {
+            results = materialMasterService.searchMaterialsByCategory(keyword, materialCategoryType);
+        } else {
+            results = materialMasterService.searchMaterials(keyword);
+        }
+        return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(results), HttpStatus.OK);
+    }
+
+    @GetMapping("/materialSearchByCategory")
+    public ResponseEntity<Object> searchMaterialsByCategory(
+            @RequestParam("keyword") String keyword,
+            @RequestParam(value = "materialCategoryType", required = false, defaultValue = "all") String materialCategoryType) {
+        List<MaterialSearchResponseDto> results = materialMasterService.searchMaterialsByCategory(keyword, materialCategoryType);
         return new ResponseEntity<>(ResponseBuilder.getSuccessResponse(results), HttpStatus.OK);
     }
 
